@@ -33,4 +33,10 @@ predictions = load_predictions("/path/to/predictions.h5")
 display_predictions_3D(raw, label, weight, [predictions])
 ```
 
+## Instance segmentation
 
+After the UNet has been verified to be giving reasonable output, the next step is to turn the UNet's semantic segmentation into an instance segmentation. The `instance_segmentation_output` function does this instance segmentation and outputs the result to various files, which can be used during later steps in elastix registration:
+
+```julia
+
+```

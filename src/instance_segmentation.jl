@@ -4,8 +4,8 @@ Returns dictionary of results and a list of error frames (most likely because th
 
 # Arguments
 
-- `rootpath::String`, `frame::Integer`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
-    Reads MHD file from `rootpath/mhd_path/img_prefix_tchannel.mhd` and outputs resulting image.
+- `rootpath::String`, `frames::Integer`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
+    Reads MHD files from, eg, `rootpath/mhd_path/img_prefix_t0123_ch2.mhd` for frame=123 and channel=2, and outputs resulting image.
 - `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
 - `centroids_output_path::String`: Path to output centroids (relative to `rootpath`)
 - `activity_output_path::String`: Path to output activity (relative to `rootpath`)
@@ -17,7 +17,7 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `min_distance::Real`: minimum distance between two local peaks. Default 2.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
-function instance_segmentation_output(rootpath::String, frame::Integer, img_prefix::String, mhd_path::String, channel::Integer, prediction_path::String,
+function instance_segmentation_output(rootpath::String, frames::Integer, img_prefix::String, mhd_path::String, channel::Integer, prediction_path::String,
             centroids_output_path::String, activity_output_path::String;
             min_vol=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance=2, threshold=0.75)
     n = length(frames)
@@ -55,8 +55,9 @@ Runs instance segmentation on a frame. Removes detected objects that are too sma
 
 # Arguments
 
-- `rootpath::String`, `frame::Integer`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
-    Reads MHD file from `rootpath/mhd_path/img_prefix_tchannel.mhd` and outputs resulting image.
+- `rootpath::String`: Working directory.
+- `frame::Integer`: Frame number of the image in question.
+- `mhd::String`: Path to mhd file.
 - `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
 
 # Optional keyword arguments
@@ -66,10 +67,10 @@ Runs instance segmentation on a frame. Removes detected objects that are too sma
 - `min_distance::Real`: minimum distance between two local peaks. Default 2.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
-function instance_segmentation(rootpath::String, frame::Integer, img_prefix::String, mhd_path::String, channel::Integer, prediction_path::String;
+function instance_segmentation(rootpath::String, frame::Integer, mhd::String, prediction_path::String;
         min_vol::Real=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance::Real=2, threshold=0.75)
     # read image
-    img = read_mhd(rootpath, img_prefix, mhd_path, frame, channel)
+    img = read_image(MHD(mhd))
     predicted_th = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"), threshold=threshold)
     img_b = remove_small_objects(predicted_th, min_vol);
     img_roi = segment_instance(img_b, kernel_σ=kernel_σ, min_distance=min_distance);
