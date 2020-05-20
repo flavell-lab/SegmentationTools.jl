@@ -40,3 +40,13 @@ After the UNet has been verified to be giving reasonable output, the next step i
 ```julia
 results, error_frames = instance_segmentation_output("/path/to/data", 1:100, "img_prefix", "MHD", 2, "predictions", "centroids", "activity")
 ```
+
+## Visualizing instance segmentation
+
+Assuming that you have successfully instance segmented the data, you can view the resulting ROIs:
+
+```julia
+frame = 50
+view_roi_3D(results[frame][1])
+```
+
