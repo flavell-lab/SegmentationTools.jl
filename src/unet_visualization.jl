@@ -111,7 +111,7 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
     for predictions in predictions_array
         if label != nothing
             push!(plots, view_label_overlay(predictions, label, weight, contrast=2))
-            push!(plots, visualize_prediction_accuracy(predictions_last, label, weight))
+            push!(plots, visualize_prediction_accuracy_2D(predictions_last, label, weight))
         else
             push!(plots, heatmap(predictions, aspect_ratio=1, showaxis=false, legend=false, fillcolor=:viridis))
         end
