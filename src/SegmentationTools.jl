@@ -2,6 +2,11 @@ module SegmentationTools
 
 using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, CaSegmentation
 
+include("unet_visualization.jl")
+include("make_unet_input.jl")
+include("instance_segmentation.jl")
+include("centroid_visualization.jl")
+
 export
     instance_segmentation_output,
     volume,
