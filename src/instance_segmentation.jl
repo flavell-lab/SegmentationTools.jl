@@ -70,7 +70,7 @@ function instance_segmentation(rootpath::String, frame::Integer, img_prefix::Str
         min_vol::Real=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance::Real=2, threshold=0.75)
     # read image
     img = read_mhd(rootpath, img_prefix, mhd_path, frame, channel)
-    predicted_th = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"))
+    predicted_th = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"), threshold=threshold)
     img_b = remove_small_objects(predicted_th, min_vol);
     img_roi = segment_instance(img_b, kernel_σ=kernel_σ, min_distance=min_distance);
 
