@@ -27,7 +27,8 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
     @showprogress for i in 1:n
         frame = frames[i]
         try
-            img_roi, centroids, activity = instance_segmentation(rootpath, frame, img_prefix, mhd_path, channel, prediction_path,
+            mhd_str = joinpath(rootpath, MHD, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
+            img_roi, centroids, activity = instance_segmentation(rootpath, frame, mhd_str, prediction_path,
                 min_vol=min_vol, kernel_σ=kernel_σ, min_distance=min_distance, threshold=threshold)
 
             results[frame] = (img_roi, centroids, activity)
