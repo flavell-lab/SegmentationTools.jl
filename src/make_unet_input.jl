@@ -154,6 +154,7 @@ Generates an HDF5 file, to be input to the UNet, out of a raw image file and a l
 
 # Arguments
 
+- `rootpath::String`: Working directory path; all other paths are relative to this.
 - `hdf5_path::String`: Path to HDF5 output file to be generated.
 - `nrrd_path::String`: Path to NRRD file containing labels. If set to the empty string, only the raw data will be added to the HDF5 file.
 - `mhd_path::String`: Path to MHD file containing raw data.
@@ -174,13 +175,13 @@ Generates an HDF5 file, to be input to the UNet, out of a raw image file and a l
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
 - `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
 """
-function make_hdf5(hdf5_path::String, nrrd_path::String, mhd_path::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
+function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_path::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
         metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=4, weight_bkg_gap::Real=24, delete_boundary::Bool=false)
     make_label = (nrrd_path != "")
     if make_label
-        label = collect(load(nrrd_path))
+        label = collect(load(joinpath(rootpath, nrrd_path)))
     end
-    raw = read_img(MHD(mhd_path))
+    raw = read_img(MHD(joinpath(rootpath, mhd_path)))
     if crop != nothing
         if make_label
             label = label[crop[1], crop[2], crop[3]]
@@ -212,7 +213,7 @@ function make_hdf5(hdf5_path::String, nrrd_path::String, mhd_path::String; crop=
     end
     # weighting
     # weight neuron pixels more heavily since there are fewer of them
-    f = h5open(hdf5_path, "w")
+    f = h5open(joinpath(rootpath, hdf5_path), "w")
     f["raw"] = collect(raw)
     if make_label
         f["label"] = collect(label_new)

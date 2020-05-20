@@ -8,7 +8,7 @@ Makes image of the raw data overlaid with a translucent label.
 - `weight`: mask of which label values to include. Pixels with a weight of 0 will be plotted in the
     raw, but not labeled, data; pixels with a weight of 1 will be plotted with raw data overlaid with label.
 
-## Optional keyword Arguments
+## Optional keyword arguments
 - `contrast::Real`: Contrast factor for raw image. Default 1 (no adjustment)
 - `label_intensity::Real`: Intensity of label, from 0 to 1. Default 0.5.
 """

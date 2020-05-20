@@ -12,7 +12,7 @@ Plots instance segmentation image `img_roi`, where each object is given a differ
 
 - `img_roi`: 3D instance segmentation image
 
-# Optional keyword Arguments
+# Optional keyword arguments
 
 - `color_brightness`: minimum RGB value (out of 1) that an object will be plotted with
 """
@@ -34,7 +34,7 @@ Plots instance segmentation image `img_roi`, where each object is given a differ
 
 - `img_roi`: 2D instance segmentation image
 
-# Optional keyword Arguments
+# Optional keyword arguments
 
 - `color_brightness`: minimum RGB value (out of 1) that an object will be plotted with
 """
