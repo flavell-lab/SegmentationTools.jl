@@ -109,7 +109,7 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
     end
 
     for predictions in predictions_array
-        push!(plots, plot(view_label_overlay(predictions, label, weight, img_max=1), aspect_ratio=1, showaxis=false, legend=false, flip=false)
+        push!(plots, plot(view_label_overlay(predictions, label, weight, img_max=1), aspect_ratio=1, showaxis=false, legend=false, flip=false))
         if label != nothing
             push!(plots, plot(visualize_prediction_accuracy(predictions_last, label, weight), aspect_ratio=1, showaxis=false, flip=false, legend=false))
         end
