@@ -25,9 +25,9 @@ The `display_predictions_3D` method can display the UNet's predictions in compar
 
 ```julia
 # load the data
-raw, label, weight = load_training_set("/path/to/data.h5")
+raw, label, weight = load_training_set("/path/to/data/data.h5")
 # load the UNet's predictions
-predictions = load_predictions("/path/to/predictions.h5")
+predictions = load_predictions("/path/to/data/predictions.h5")
 # display the predictions
 # the order of plots will be raw data + label, weights + label, predictions + label, predictions vs label match
 display_predictions_3D(raw, label, weight, [predictions])
@@ -38,5 +38,5 @@ display_predictions_3D(raw, label, weight, [predictions])
 After the UNet has been verified to be giving reasonable output, the next step is to turn the UNet's semantic segmentation into an instance segmentation. The `instance_segmentation_output` function does this instance segmentation and outputs the result to various files, which can be used during later steps in elastix registration:
 
 ```julia
-
+instance_segmentation_output("/path/to/data", 1, "img_prefix", "MHD", 2, "predictions", )
 ```

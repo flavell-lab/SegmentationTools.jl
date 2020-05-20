@@ -17,7 +17,8 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `min_distance::Real`: minimum distance between two local peaks. Default 2.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
-function instance_segmentation_output(rootpath::String, frames::Integer, img_prefix::String, mhd_path::String, channel::Integer, prediction_path::String,
+function instance_segmentation_output(rootpath::String, frames::Integer, img_prefix::String, 
+            mhd_path::String, channel::Integer, prediction_path::String,
             centroids_output_path::String, activity_output_path::String;
             min_vol=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance=2, threshold=0.75)
     n = length(frames)
@@ -32,9 +33,11 @@ function instance_segmentation_output(rootpath::String, frames::Integer, img_pre
             results[frame] = (img_roi, centroids, activity)
             
             centroid_path = joinpath(rootpath, centroids_output_path, "$(frame).txt")
+            create_dir(centroid_path)
             write_centroids(centroids, centroid_path)
 
             activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
+            create_dir(activity_path)
             write_activity(activity, activity_path)
         catch e
             println("ERROR: "*string(e));
