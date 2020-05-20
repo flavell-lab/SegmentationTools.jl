@@ -80,7 +80,7 @@ function make_plot_grid(plots, cols::Integer, size)
         col = (i-1)%cols + 1
         plot!(fig[row,col], plt)
     end
-    return p
+    return fig
 end
 
 """
