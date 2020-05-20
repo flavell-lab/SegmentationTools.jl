@@ -213,7 +213,6 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
     end
     # weighting
     # weight neuron pixels more heavily since there are fewer of them
-    create_dir(joinpath(rootpath, hdf5_path))
     f = h5open(joinpath(rootpath, hdf5_path), "w")
     f["raw"] = collect(raw)
     if make_label
