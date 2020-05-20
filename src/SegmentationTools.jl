@@ -2,4 +2,23 @@ module SegmentationTools
 
 using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, CaSegmentation
 
+export
+    instance_segmentation_output,
+    volume,
+    instance_segmentation,
+    get_centroids,
+    get_activity,
+    create_weights,
+    make_hdf5,
+    view_label_overlay,
+    visualize_prediction_accuracy_2D,
+    visualize_prediction_accuracy_3D,
+    make_plot_grid,
+    display_predictions_2D,
+    display_predictions_3D,
+    centroids_to_img,
+    view_roi_2D,
+    view_roi_3D,
+    view_centroids_2D,
+    view_centroids_3D
 end # module

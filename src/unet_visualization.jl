@@ -23,6 +23,7 @@ end
 
 """
 Generates an image which compares the predictions of the neural net with the label.
+Green = match, red = mismatch.
 Assumes the predictions and labels are binary 2D arrays.
 
 # Arguments
@@ -38,6 +39,24 @@ function visualize_prediction_accuracy_2D(predicted, actual, weight)
     blue = zeros(size(inaccuracy))
     rgb_stack = RGB.(red, green, blue)
     return rgb_stack
+end
+
+
+"""
+Generates an image which compares the predictions of the neural net with the label.
+Green = match, red = mismatch.
+Assumes the predictions and labels are binary 3D arrays.
+
+# Arguments
+
+- `predicted`: neural net predictions
+- `actual`: actual labels
+- `weight`: pixel weights; weight of 0 is ignored and not plotted.
+"""
+function visualize_prediction_accuracy_3D(predicted, actual, weight)
+    @manipulate for z=1:size(raw)[3]
+        visualize_prediction_accuracy_2D(predicted[:,:,z], actual[:,:,z], weight[:,:,z])
+    end
 end
 
 
