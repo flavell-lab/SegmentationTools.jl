@@ -65,20 +65,20 @@ Makes grid out of many smaller plots.
 
 # Arguments
 
-- `plots`: List of plots
+- `plots`: List of things to be plotted
 - `cols::Integer`: Number of columns in array of plots to be created
 - `size`: Size of resulting plot per row.
 """
-function make_plot_grid(plots, cols::Integer, size)
+function make_plot_grid(plots, cols::Integer, plot_size)
     if length(plots) < cols
         cols = length(plots)
     end
     rows = length(plots)÷cols
-    fig = plot(layout=(rows, cols), size=(size[1], size[2]*rows))
+    fig = plot(layout=(rows, cols), size=(plot_size[1], plot_size[2]*rows))
     for (i,plt) in enumerate(plots)
         row = (i-1)÷cols + 1
         col = (i-1)%cols + 1
-        plot!(fig[row,col], plt)
+        plot!(fig[row,col], plt, aspect_ratio=1, showaxis=false, legend=false, flip=false)
     end
     return fig
 end
@@ -102,16 +102,16 @@ in comparison with the label and weight samples.
 function display_predictions_2D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750))
     plots = []
     if label != nothing
-        push!(plots, plot(view_label_overlay(raw, label, weight, contrast=2), aspect_ratio=1, showaxis=false, legend=false, flip=false))
-        push!(plots, plot(view_label_overlay(weight, label, weight, contrast=2), aspect_ratio=1, showaxis=false, legend=false, flip=false))
+        push!(plots, view_label_overlay(raw, label, weight, contrast=2))
+        push!(plots, view_label_overlay(weight, label, weight, contrast=2))
     else
         push!(plots, heatmap(raw, aspect_ratio=1, showaxis=false, legend=false, fillcolor=:viridis))
     end
 
     for predictions in predictions_array
-        push!(plots, plot(view_label_overlay(predictions, label, weight, img_max=1), aspect_ratio=1, showaxis=false, legend=false, flip=false))
+        push!(plots, view_label_overlay(predictions, label, weight, img_max=1))
         if label != nothing
-            push!(plots, plot(visualize_prediction_accuracy(predictions_last, label, weight), aspect_ratio=1, showaxis=false, flip=false, legend=false))
+            push!(plots, visualize_prediction_accuracy(predictions_last, label, weight))
         end
     end
     return make_plot_grid(plots, cols, plot_size)
