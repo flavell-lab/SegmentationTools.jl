@@ -4,7 +4,7 @@ Returns dictionary of results and a list of error frames (most likely because th
 
 # Arguments
 
-- `rootpath::String`, `frames::Integer`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
+- `rootpath::String`, `frames`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
     Reads MHD files from, eg, `rootpath/mhd_path/img_prefix_t0123_ch2.mhd` for frame=123 and channel=2, and outputs resulting image.
 - `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
 - `centroids_output_path::String`: Path to output centroids (relative to `rootpath`)
@@ -17,7 +17,7 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `min_distance::Real`: minimum distance between two local peaks. Default 2.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
-function instance_segmentation_output(rootpath::String, frames::Integer, img_prefix::String, 
+function instance_segmentation_output(rootpath::String, frames, img_prefix::String, 
             mhd_path::String, channel::Integer, prediction_path::String,
             centroids_output_path::String, activity_output_path::String;
             min_vol=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance=2, threshold=0.75)
