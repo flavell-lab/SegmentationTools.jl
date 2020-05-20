@@ -78,7 +78,7 @@ function make_plot_grid(plots, cols::Integer, size)
     for (i,plot) in enumerate(plots)
         row = length(plots)÷i + 1
         col = (i-1)%cols + 1
-        plot!(p[row,col], plot])
+        plot!(p[row,col], plot)
     end
     return p
 end
