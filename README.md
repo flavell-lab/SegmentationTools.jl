@@ -38,7 +38,7 @@ display_predictions_3D(raw, label, weight, [predictions])
 After the UNet has been verified to be giving reasonable output, the next step is to turn the UNet's semantic segmentation into an instance segmentation. The `instance_segmentation_output` function does this instance segmentation and outputs the result to various files, which can be used during later steps in elastix registration:
 
 ```julia
-results, error_frames = instance_segmentation_output("/path/to/data", 1:100, "img_prefix", "MHD", 2, "predictions", "centroids", "activity")
+results, error_frames = instance_segmentation_output("/path/to/data", 1:100, "img_prefix", "MHD", 2, "predictions", "centroids", "activity", "ROIs")
 ```
 
 ## Visualizing instance segmentation
@@ -49,4 +49,3 @@ Assuming that you have successfully instance segmented the data, you can view th
 frame = 50
 view_roi_3D(results[frame][1])
 ```
-

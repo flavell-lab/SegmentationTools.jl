@@ -1,5 +1,6 @@
 """
-Runs instance segmentation on all given frames and outputs to various files.
+Runs instance segmentation on all given frames and outputs to various files (centroids, activity measurements, and image ROIs).
+Skips a given output method if the corresponding output directory was empty
 Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
 
 # Arguments
@@ -9,6 +10,7 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
 - `centroids_output_path::String`: Path to output centroids (relative to `rootpath`)
 - `activity_output_path::String`: Path to output activity (relative to `rootpath`)
+- `roi_output_path::String`: Path to output image ROIs (relative to `rootpath`)
 
 # Optional keyword arguments
 
@@ -19,11 +21,11 @@ Returns dictionary of results and a list of error frames (most likely because th
 """
 function instance_segmentation_output(rootpath::String, frames, img_prefix::String, 
             mhd_path::String, channel::Integer, prediction_path::String,
-            centroids_output_path::String, activity_output_path::String;
+            centroids_output_path::String, activity_output_path::String, roi_output_path::String;
             min_vol=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance=2, threshold=0.75)
     n = length(frames)
     results = Dict()
-    error_frames = []
+    error_frames = Dict()
     @showprogress for i in 1:n
         frame = frames[i]
         try
@@ -33,17 +35,33 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
 
             results[frame] = (img_roi, centroids, activity)
             
-            centroid_path = joinpath(rootpath, centroids_output_path, "$(frame).txt")
-            create_dir(joinpath(rootpath, centroids_output_path))
-            write_centroids(centroids, centroid_path)
+            if centroids_output_path != ""
+                centroid_path = joinpath(rootpath, centroids_output_path, "$(frame).txt")
+                create_dir(joinpath(rootpath, centroids_output_path))
+                write_centroids(centroids, centroid_path)
+            end
 
-            activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
-            create_dir(joinpath(rootpath, activity_output_path))
-            write_activity(activity, activity_path)
+            if activity_output_path != ""
+                activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
+                create_dir(joinpath(rootpath, activity_output_path))
+                write_activity(activity, activity_path)
+            end
+
+            if roi_output_path != ""
+                roi_path = joinpath(rootpath, roi_output_path, "$(frame)")
+                create_dir(joinpath(rootpath, roi_output_path))
+                mhd = MHD(mhd_str)
+                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
+                write_raw("$(roi_path).raw"), img_roi)
+                write_MHD_spec("$(roi_path).mhd", spacing[1], spacing[end], size(img_roi)[1],
+                    size(img_roi)[2], size(img_roi)[3], "$(frame).raw")
+            end
         catch e
-            println("ERROR: "*string(e));
-            append!(error_frames, frame)
+            error_frames[i] = string(e)
         end
+    end
+    if length(keys(error_frames)) > 0
+        println("WARNING: Errors in some frames.")
     end
     return (results, error_frames)
 end
