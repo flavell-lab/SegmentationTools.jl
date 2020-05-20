@@ -34,11 +34,11 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
             results[frame] = (img_roi, centroids, activity)
             
             centroid_path = joinpath(rootpath, centroids_output_path, "$(frame).txt")
-            create_dir(centroid_path)
+            create_dir(joinpath(rootpath, centroids_output_path))
             write_centroids(centroids, centroid_path)
 
             activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
-            create_dir(activity_path)
+            create_dir(joinpath(rootpath, activity_output_path))
             write_activity(activity, activity_path)
         catch e
             println("ERROR: "*string(e));
