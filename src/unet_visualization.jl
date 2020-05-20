@@ -85,7 +85,9 @@ end
 
 """
 Compares multiple different neural network predictions of the raw dataset,
-in comparison with the label and weight samples.
+in comparison with the label and weight samples. The order of the plots is a plot of the raw
+data, followed by a plot of the weights, followed by plots of raw predictions and prediction vs label
+differential (in the order the predictions were specified in the array).
 
 # Arguments
 

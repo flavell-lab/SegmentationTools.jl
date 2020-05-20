@@ -202,7 +202,7 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
             weight = map(weight_fn, label)
         # Don't weight unlabeled, weight background pixels nearby neuron pixels higher.
         elseif weight_strategy == "neighbors"
-            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric)
+            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric, delete_boundary=delete_boundary)
         else
             throw("Weight strategy "*weight_strategy*" not implemented.")
         end
