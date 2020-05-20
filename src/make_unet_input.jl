@@ -75,7 +75,7 @@ down from the foreground weight. "Background-gap" data that serves to mark bound
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
 - `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
 """
-function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric:::String="taxicab", weight_foreground::Real=4, weight_bkg_gap::Real=24, delete_boundary::Bool=false)
+function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::String="taxicab", weight_foreground::Real=4, weight_bkg_gap::Real=24, delete_boundary::Bool=false)
     weights = zeros(size(label))
     # add flat weight to background, so regions far from neurons get counted
     # this will be overwritten with higher weights near neurons
