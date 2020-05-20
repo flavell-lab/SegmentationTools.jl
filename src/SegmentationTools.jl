@@ -1,6 +1,6 @@
 module SegmentationTools
 
-using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, CaSegmentation
+using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, CaSegmentation, ProgressMeter
 
 include("unet_visualization.jl")
 include("make_unet_input.jl")
