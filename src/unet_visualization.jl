@@ -99,7 +99,7 @@ in comparison with the label and weight samples.
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
 - `size`: size of plot per row. Default (1800, 750).
 """
-function display_predictions_2D(raw, label, weight, predictions_array; cols::Integer=7, size=(1800,750))
+function display_predictions_2D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750))
     plots = []
     if label != nothing
         push!(plots, plot(view_label_overlay(raw, label, weight, contrast=2), aspect_ratio=1, showaxis=false, legend=false, flip=false))
@@ -114,7 +114,7 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
             push!(plots, plot(visualize_prediction_accuracy(predictions_last, label, weight), aspect_ratio=1, showaxis=false, flip=false, legend=false))
         end
     end
-    return make_plot_grid(plots, cols, size)
+    return make_plot_grid(plots, cols, plot_size)
 end
 
 """
@@ -133,9 +133,9 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
 - `size`: size of plot per row. Default (1800, 750).
 """
-function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, size=(1800,750))
+function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750))
     @manipulate for z=1:size(raw)[3]
-        display_predictions_2D(raw[:,:,z], label[:,:,z], weight[:,:,z], [predictions[:,:,z] for predictions in predictions_array]; cols=cols, size=size)
+        display_predictions_2D(raw[:,:,z], label[:,:,z], weight[:,:,z], [predictions[:,:,z] for predictions in predictions_array]; cols=cols, plot_size=plot_size)
     end
 end
 
