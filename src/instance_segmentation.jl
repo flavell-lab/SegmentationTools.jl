@@ -52,7 +52,7 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
                 create_dir(joinpath(rootpath, roi_output_path))
                 mhd = MHD(mhd_str)
                 spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
-                write_raw("$(roi_path).raw", img_roi)
+                write_raw("$(roi_path).raw", map(x->UInt16(x), img_roi))
                 write_MHD_spec("$(roi_path).mhd", spacing[1], spacing[end], size(img_roi)[1],
                     size(img_roi)[2], size(img_roi)[3], "$(frame).raw")
             end

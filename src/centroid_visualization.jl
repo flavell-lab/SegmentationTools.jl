@@ -15,14 +15,15 @@ Plots instance segmentation image `img_roi`, where each object is given a differ
 # Optional keyword arguments
 
 - `color_brightness`: minimum RGB value (out of 1) that an object will be plotted with
+- `plot_size`: size of the plot
 """
-function view_roi_3D(img_roi; color_brightness=0.3)
+function view_roi_3D(img_roi; color_brightness=0.3, plot_size=(600,600))
     num = maximum(img_roi)+1
     colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
     colors[1] = RGB.(0,0,0)
     img_plot = map(x->colors[x+1], img_roi)
     @manipulate for z=1:size(img_plot)[3]
-        Plots.plot(img_plot[:,:,z])
+        Plots.plot(img_plot[:,:,z], size=plot_size)
     end
 end
 
