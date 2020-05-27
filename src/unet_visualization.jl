@@ -139,7 +139,8 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 """
 function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750))
     @manipulate for z=1:size(raw)[3]
-        display_predictions_2D(raw[:,:,z], label[:,:,z], weight[:,:,z], [predictions[:,:,z] for predictions in predictions_array]; cols=cols, plot_size=plot_size)
+
+        display_predictions_2D(raw[:,:,z], (label == nothing ? nothing : label[:,:,z]), (weight == nothing ? nothing : weight[:,:,z]), [predictions[:,:,z] for predictions in predictions_array]; cols=cols, plot_size=plot_size)
     end
 end
 
