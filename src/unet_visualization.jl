@@ -107,7 +107,8 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
         push!(plots, view_label_overlay(raw, label, weight, contrast=2))
         push!(plots, view_label_overlay(weight, label, weight, contrast=2))
     else
-        push!(plots, heatmap(raw, aspect_ratio=1, showaxis=false, legend=false, fillcolor=:viridis))
+        gray = map(x->min(x, 1), raw * 2 ./ maximum(raw))
+        push!(plots, RGB.(gray, gray, gray))
     end
 
     for predictions in predictions_array
@@ -115,7 +116,8 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
             push!(plots, view_label_overlay(predictions, label, weight, contrast=2))
             push!(plots, visualize_prediction_accuracy_2D(predictions, label, weight))
         else
-            push!(plots, heatmap(predictions, aspect_ratio=1, showaxis=false, legend=false, fillcolor=:viridis))
+            gray = map(x->min(x, 1), predictions * 2 ./ maximum(predictions))
+            push!(plots, RGB.(gray, gray, gray))
         end
     end
     return make_plot_grid(plots, cols, plot_size)
@@ -139,7 +141,6 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 """
 function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750))
     @manipulate for z=1:size(raw)[3]
-
         display_predictions_2D(raw[:,:,z], (label == nothing ? nothing : label[:,:,z]), (weight == nothing ? nothing : weight[:,:,z]), [predictions[:,:,z] for predictions in predictions_array]; cols=cols, plot_size=plot_size)
     end
 end
