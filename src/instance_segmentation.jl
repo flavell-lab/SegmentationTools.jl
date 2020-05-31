@@ -131,7 +131,7 @@ function get_activity(img_roi, img)
     for i=1:maximum(img_roi)
         total = sum(img_roi .== i)
         if total == 0
-            continue
+            push!(activity, 0)
         end
         push!(activity, map(x->round(x), sum(img[img_roi .== i]) / total))
     end
