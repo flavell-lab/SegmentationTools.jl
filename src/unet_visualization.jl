@@ -65,7 +65,7 @@ Makes grid out of many smaller plots.
 
 # Arguments
 
-- `plots`: List of things to be plotted
+- `plots`: List of things to be plotted. Each item must be something that could be input to the `plot` function.
 - `cols::Integer`: Number of columns in array of plots to be created
 - `size`: Size of resulting plot per row.
 """
@@ -73,7 +73,7 @@ function make_plot_grid(plots, cols::Integer, plot_size)
     if length(plots) < cols
         cols = length(plots)
     end
-    rows = length(plots)÷cols
+    rows = (length(plots)-1)÷cols+1
     fig = plot(layout=(rows, cols), size=(plot_size[1], plot_size[2]*rows))
     for (i,plt) in enumerate(plots)
         row = (i-1)÷cols + 1

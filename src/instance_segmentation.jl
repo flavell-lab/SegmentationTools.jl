@@ -22,7 +22,7 @@ Returns dictionary of results and a list of error frames (most likely because th
 function instance_segmentation_output(rootpath::String, frames, img_prefix::String, 
             mhd_path::String, channel::Integer, prediction_path::String,
             centroids_output_path::String, activity_output_path::String, roi_output_path::String;
-            min_vol=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance=2, threshold=0.75)
+            min_vol=volume(1, (1,1,3)), threshold=0.75)
     n = length(frames)
     results = Dict()
     error_frames = Dict()
@@ -31,7 +31,7 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
         try
             mhd_str = joinpath(rootpath, mhd_path, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
             img_roi, centroids, activity = instance_segmentation(rootpath, frame, mhd_str, prediction_path,
-                min_vol=min_vol, kernel_σ=kernel_σ, min_distance=min_distance, threshold=threshold)
+                min_vol=min_vol, threshold=threshold)
 
             results[frame] = (img_roi, centroids, activity)
             
@@ -85,17 +85,15 @@ Runs instance segmentation on a frame. Removes detected objects that are too sma
 # Optional keyword arguments
 
 - `min_vol::Real`: smallest neuron volume. Default the volume of a spheroid with radius 1 but elongated by a factor of 3 in the z-direction.
-- `kernel_σ`: Gaussian kernel size to filter distance image for local peak detection. Default (0.5, 0.5, 1.5).
-- `min_distance::Real`: minimum distance between two local peaks. Default 2.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
 function instance_segmentation(rootpath::String, frame::Integer, mhd::String, prediction_path::String;
-        min_vol::Real=volume(1, (1,1,3)), kernel_σ=(0.5,0.5,1.5), min_distance::Real=2, threshold=0.75)
+        min_vol::Real=volume(1, (1,1,3)), threshold=0.75)
     # read image
     img = read_img(MHD(mhd))
     predicted_th = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"), threshold=threshold)
     img_b = remove_small_objects(predicted_th, min_vol);
-    img_roi = segment_instance(img_b, kernel_σ=kernel_σ, min_distance=min_distance);
+    img_roi = consolidate_labeled_img(labels_map(fast_scanning(img_b, 0.5)));
 
     # get centroids of ROIs
     centroids = get_centroids(img_roi);
@@ -106,6 +104,33 @@ function instance_segmentation(rootpath::String, frame::Integer, mhd::String, pr
     return (img_roi, centroids, activity)
 end
 
+
+""" Converts an instance-segmentation image to a ROI image. """
+function consolidate_labeled_img(labeled_img)
+    labels = []
+    bkg_label = 0
+    max_sum = 0
+    for i=minimum(labeled_img):maximum(labeled_img)
+        s = sum(labeled_img .== i)
+        if s > 0
+            append!(labels, i)
+        end
+        if s > max_sum
+            bkg_label=i
+            max_sum = s
+        end
+    end
+    label_dict = Dict()
+    label_dict[bkg_label] = UInt16(0)
+    count = 1
+    for i=1:length(labels)
+        if labels[i] != bkg_label
+            label_dict[labels[i]] = UInt16(count)
+            count = count + 1
+        end
+    end
+    return map(x->label_dict[x], labeled_img)
+end
 
 """
 Gets centroids from image ROI `img_roi`.

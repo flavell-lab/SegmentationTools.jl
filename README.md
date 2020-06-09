@@ -24,10 +24,10 @@ These HDF5 files can then be fed as input to the UNet.
 The `display_predictions_3D` method can display the UNet's predictions in comparison with the raw and labeled data.
 
 ```julia
-# load the data
-raw, label, weight = load_training_set("/path/to/data/data.h5")
+# load the data (say it's dataset 50)
+raw, label, weight = load_training_set("/path/to/data/50.h5")
 # load the UNet's predictions
-predictions = load_predictions("/path/to/data/predictions.h5")
+predictions = load_predictions("/path/to/data/50_predictions.h5")
 # display the predictions
 # the order of plots will be raw data + label, weights + label, predictions + label, predictions vs label match
 display_predictions_3D(raw, label, weight, [predictions])
@@ -43,9 +43,9 @@ results, error_frames = instance_segmentation_output("/path/to/data", 1:100, "im
 
 ## Visualizing instance segmentation
 
-Assuming that you have successfully instance segmented the data, you can view the resulting ROIs:
+Assuming that you have successfully instance segmented the data, you can view the resulting ROIs,
+in comparison with the raw and predicted data, to ensure that instance segmentation was successful:
 
 ```julia
-frame = 50
-view_roi_3D(results[frame][1])
+view_roi_3D(raw, predictions, results[50][1])
 ```
