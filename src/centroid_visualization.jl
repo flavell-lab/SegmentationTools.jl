@@ -34,7 +34,7 @@ function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
     colors[1] = RGB.(0,0,0)
     push!(plot_imgs, map(x->colors[x+1], img_roi))
     @manipulate for z=1:size(plot_imgs[1])[3]
-        make_plot_grid([i[:,:,z] for i in plot_imgs], length(plot_imgs), size=plot_size)
+        make_plot_grid([i[:,:,z] for i in plot_imgs], length(plot_imgs), plot_size)
     end
 end
 
@@ -66,7 +66,7 @@ function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3)
     colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
     colors[1] = RGB.(0,0,0)
     push!(plot_imgs, map(x->colors[x+1], img_roi))
-    make_plot_grid(plot_imgs, length(plot_imgs), size=plot_size)
+    make_plot_grid(plot_imgs, length(plot_imgs), plot_size)
 end
 
 """
