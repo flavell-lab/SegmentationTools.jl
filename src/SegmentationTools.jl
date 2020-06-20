@@ -12,6 +12,7 @@ export
     instance_segmentation_output,
     volume,
     instance_segmentation,
+    consolidate_labeled_img,
     get_centroids,
     get_activity,
     create_weights,
