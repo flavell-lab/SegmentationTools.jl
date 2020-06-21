@@ -135,8 +135,8 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
                 if nb[3] != idx[3]
                     continue
                 end
-                # only overwrite neuron pixels
-                if (label[idx] == 1) && (label[nb] != label[idx])
+                # only overwrite neuron pixels bordering background
+                if (label[idx] == 1) && (label[nb] != label[idx]) && (weights[nb] != 0)
                     weights[idx] = 0
                 end
             end
