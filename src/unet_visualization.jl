@@ -13,7 +13,7 @@ Makes image of the raw data overlaid with a translucent label.
 - `label_intensity::Real`: Intensity of label, from 0 to 1. Default 0.5.
 """
 function view_label_overlay(img, label, weight; contrast::Real=1, label_intensity::Real=0.5)
-    img_gray = map(x->min(x, 0.5), img * contrast * (1 - label_intensity) ./ maximum(img))
+    img_gray = map(x->min(x, label_intensity), img * contrast * (1 - label_intensity) ./ maximum(img))
     green = img_gray + [weight[x] == 0 ? 0 : (1-label[x]) * label_intensity for x in CartesianIndices(size(img))]
     red = img_gray + [weight[x] == 0 ? 0 : label[x] * label_intensity for x in CartesianIndices(size(img))]
     blue = img_gray

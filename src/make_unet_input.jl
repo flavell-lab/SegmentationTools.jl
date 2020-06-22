@@ -74,8 +74,10 @@ down from the foreground weight. "Background-gap" data that serves to mark bound
 - `weight_foreground::Real`: weight of foreground (1) label
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
 - `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
+- `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border.
 """
-function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::String="taxicab", weight_foreground::Real=4, weight_bkg_gap::Real=24, delete_boundary::Bool=false)
+function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::String="taxicab", weight_foreground::Real=4,
+        weight_bkg_gap::Real=24, delete_boundary::Bool=false, scale_bkg_gap::Bool=false)
     weights = zeros(size(label))
     # add flat weight to background, so regions far from neurons get counted
     # this will be overwritten with higher weights near neurons
@@ -130,7 +132,11 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
     if delete_boundary
         for idx in CartesianIndices(size(weights))
             nbs = get_neighbors_cartesian(idx, size(weights))
+            neuron_nbs = 0
             for nb in nbs
+                if label[nb] == 1
+                    neuron_nbs = neuron_nbs + 1 
+                end
                 # only reweight pixels in xy plane
                 if nb[3] != idx[3]
                     continue
@@ -140,11 +146,16 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
                     weights[idx] = 0
                 end
             end
+            if label[idx] == 3 
+                if scale_bkg_gap
+                    label[idx] = weight_bkg_gap * (neuron_nbs + 1)
+                else
+                    label[idx] = weight_bkg_gap
+                end
+            end
         end
     end
-    
-    weights = [(label[x] == 3) ? weight_bkg_gap : weights[x] for x in CartesianIndices(size(weights))]
-    
+     
     return collect(map(x->convert(Float64, x), weights))
 end
 
