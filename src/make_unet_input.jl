@@ -152,14 +152,13 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
         end
         nbs = get_neighbors_cartesian(idx, size(weights))
         neuron_nbs = 0
-        for nb in nbs
-            if label[nb] == 1
-                neuron_nbs = neuron_nbs + 1 
-            end
-        end
         if label[idx] == 3 
+            for nb in nbs
+                if label[nb] == 1
+                    neuron_nbs = neuron_nbs + 1 
+                end
+            end
             weights[idx] = weight_bkg_gap * (neuron_nbs + 1)
-            weights[idx] = weight_bkg_gap
         end
     end
      
