@@ -132,11 +132,7 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
     if delete_boundary
         for idx in CartesianIndices(size(weights))
             nbs = get_neighbors_cartesian(idx, size(weights))
-            neuron_nbs = 0
             for nb in nbs
-                if label[nb] == 1
-                    neuron_nbs = neuron_nbs + 1 
-                end
                 # only reweight pixels in xy plane
                 if nb[3] != idx[3]
                     continue
@@ -146,13 +142,24 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
                     weights[idx] = 0
                 end
             end
-            if label[idx] == 3 
-                if scale_bkg_gap
-                    label[idx] = weight_bkg_gap * (neuron_nbs + 1)
-                else
-                    label[idx] = weight_bkg_gap
-                end
+        end
+    end
+
+    for idx in CartesianIndices(size(weights))
+        if !scale_bkg_gap
+            weights[idx] = weight_bkg_gap
+            continue
+        end
+        nbs = get_neighbors_cartesian(idx, size(weights))
+        neuron_nbs = 0
+        for nb in nbs
+            if label[nb] == 1
+                neuron_nbs = neuron_nbs + 1 
             end
+        end
+        if label[idx] == 3 
+            weights[idx] = weight_bkg_gap * (neuron_nbs + 1)
+            weights[idx] = weight_bkg_gap
         end
     end
      
