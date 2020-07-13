@@ -29,9 +29,5 @@ export
     view_centroids_2D,
     view_centroids_3D,
     instance_segment_concave,
-    instance_segment_hull,
-    hull_watershed,
-    find_convex_hull,
-    find_matching_errors,
-    visualize_roi_predictions
+    distance
 end # module

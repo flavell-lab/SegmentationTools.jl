@@ -162,3 +162,202 @@ function get_activity(img_roi, img)
     end
     return activity
 end
+
+"""
+Finds the convex hull of a set of `points`, counting how many lines intersect each point.
+"""
+function find_convex_hull(points)
+    hull = Dict()
+    
+    for p1 in points
+        for p2 in points
+            if p1 == p2
+                continue
+            end
+            d = floor(distance(p1,p2,zscale=1))
+            for t=0:d
+                pt = Tuple(map(x->Int32(round(x)),p2 .+ t.*(p1.-p2)./d))
+                if pt in keys(hull)
+                    hull[pt][2] = hull[pt][2] + 1
+                    continue
+                end
+                if pt in points
+                    hull[pt] = [1,1]
+                else
+                    hull[pt] = [0,1]
+                end
+            end
+        end
+    end
+    return hull
+end
+
+"""
+Returns all points from `img_roi` corresponding to region `roi`.
+"""
+function get_points(img_roi, roi)
+    return [Tuple(x) for x in CartesianIndices(size(img_roi)) if img_roi[x] == roi]
+end
+
+"""
+Computes the distance between two points `p1` and `p2`, with the z-axis scaled by `zscale`.
+"""
+function distance(p1, p2; zscale=2.78)
+    dim_dist = collect(Float64, (p1 .- p2) .* (p1 .- p2))
+    dim_dist[3] *= zscale^2
+    return sqrt(sum(dim_dist))
+end
+
+"""
+Does watershed segmentation on a set of `points` and their convex `hull`, with the intent of splitting concave neurons.
+Scales z-axis by `zscale` (default 2.78) and expands first segmented neuron by `init_scale` to determine second neuron location.
+"""
+function hull_watershed(points, hull; zscale=2.78, init_scale=0.7)
+    weight = sum([(1 - hull[pt][1]) * hull[pt][2] for pt in keys(hull)])
+    # get the farthest point from the concave points and declare it the center of the first neuron
+    dist_1 = [sum([distance(p1, p2, zscale=zscale) * (1 - hull[p2][1]) * hull[p2][2] for p2 in keys(hull)])/weight for p1 in points]
+    farthest_1 = argmax(dist_1)
+    neuron_1_init_hull = Dict()
+    for p in keys(hull)
+        if distance(p, points[farthest_1], zscale=zscale) < dist_1[farthest_1] * init_scale
+            neuron_1_init_hull[p] = 0
+        else
+            neuron_1_init_hull[p] = 1
+        end
+    end
+    
+    # get the farthest point from the first neuron and concave points and declare it the center of the second neuron
+    dist_2 = [sum([distance(p1, p2, zscale=zscale) * (1 - neuron_1_init_hull[p2]) for p2 in keys(hull)])/sum([1 - neuron_1_init_hull[pt] for pt in keys(hull)]) for p1 in points]
+    farthest_2 = argmax(dist_2)
+    
+    # sort points based on which center they're closer to
+    min_dim = [minimum([points[i][l] for i=1:length(points)]) - 1 for l = 1:length(points[1])]
+    max_dim = [maximum([points[i][l] for i=1:length(points)]) for l = 1:length(points[1])]
+    watershed_img = zeros(Tuple(max_dim[l] .- min_dim[l] for l = 1:length(min_dim)))
+    for idx in CartesianIndices(watershed_img)
+        point = collect(Tuple(idx)) .+ min_dim
+        watershed_img[idx] = -sum([distance(point, p2, zscale=zscale) * (1 - hull[p2][1]) * hull[p2][2] for p2 in keys(hull)])/weight
+    end
+    
+    watershed_markers = zeros(Int64, size(watershed_img))
+    watershed_markers[CartesianIndex(Tuple(collect(points[farthest_1]) .- min_dim))] = 1
+    watershed_markers[CartesianIndex(Tuple(collect(points[farthest_2]) .- min_dim))] = 2
+    
+    results = labels_map(watershed(watershed_img, watershed_markers))
+    
+    neuron_1 = [p for p in points if results[CartesianIndex(Tuple(collect(p) .- min_dim))] == 1]
+    neuron_2 = [p for p in points if results[CartesianIndex(Tuple(collect(p) .- min_dim))] == 2]
+    
+    return (neuron_1, neuron_2)
+end
+
+"""
+Instance segments an image `img_roi` given set of `points` with a given convex `hull` via watershedding.
+Discards neurons with size less than `min_neuron_size` (default 10), scales z-axis by `zscale` (default 2.78),
+and expands first segmented neuron by `init_scale` to determine second neuron location.
+"""
+function instance_segment_hull(img_roi, points, hull; min_neuron_size=10, zscale=2.78, init_scale=0.7)
+    neuron_1, neuron_2 = hull_watershed(points, hull, zscale=zscale, init_scale=init_scale)
+    failed_flag = (length(neuron_1) < min_neuron_size || length(neuron_2) < min_neuron_size)
+    if failed_flag
+        return (img_roi, true)
+    end
+    m = maximum(img_roi)
+    img_roi_new = copy(img_roi)
+    for pt in neuron_2
+        img_roi_new[CartesianIndex(pt)] = m+1
+    end
+    return (img_roi_new, false)
+end
+
+"""
+Generates a score for how concave a set of `points` with a given convex `hull` is.
+"""
+function concave_score(points, hull)
+    return sum([(1-x[1])*x[2] for x in values(hull)]) * length(hull) / sum([x[2] for x in values(hull)]) * log(length(values(hull))) / length(values(hull))
+end
+
+"""
+Detects if a given set of `points` is concave given its `hull`, by comparing its concavity score with `threshold_scale`.
+"""
+function is_concave(points, hull; threshold_scale=0.3)
+    return concave_score(points, hull) > threshold_scale
+end
+
+"""
+Finds the `num_neurons` (default 10) most concave neurons in an image `img_roi`.
+Concave neurons must also meet the `threshold_scale`.
+"""
+function find_concave_neurons(img_roi; num_neurons=10, threshold_scale=0.3)
+    hull_points = Dict()
+    top = [[0.0,0.0] for i=1:num_neurons]
+    for roi in 1:maximum(img_roi)
+        points = get_points(img_roi, roi)
+        hull = find_convex_hull(points)
+        score = concave_score(points, hull)
+        if score > max(top[1][2], threshold_scale)
+            top[1][1] = roi
+            top[1][2] = score
+            top = sort(top, by=x->x[2])
+        end
+        hull_points[roi] = (points, hull)
+    end
+    concave = Dict()
+    best_score = 0
+    for t in top
+        if t[1] != 0
+            if best_score == 0
+                best_score = t[2]
+            end
+            concave[t[1]] = hull_points[t[1]]
+        end
+    end
+    return (concave, best_score)
+end
+
+"""
+Recursively segments all concave neurons in an image. 
+
+# Arguments
+- `img_roi`: Image to segment
+
+# Optional keyword arguments
+- `threshold_scale::Real`: Neurons less concave than this won't be segmented. Default 0.3
+- `num_neurons::Real`: Maximum number of concave neurons per frame. Defaul 10.
+- `zscale::Real`: Scale of z-axis relative to xy plane. Default 2.78.
+- `min_neuron_size::Integer`: Minimum size of a neuron (in pixels). Default 10.
+- `scale_recurse_multiply::Real`: Factor to increase the concavity threshold for recursive segmentation. Default 1.5.
+- `init_scale::Real`: Amount to expand first neuron before computing location of second neuron. Default 0.7. 
+"""
+function instance_segment_concave(img_roi; threshold_scale::Real=0.3, init_scale::Real=0.7, zscale::Real=2.78, min_neuron_size::Integer=10, scale_recurse_multiply::Real=1.5, num_neurons::Integer=10)
+    concave, score = find_concave_neurons(img_roi, threshold_scale=threshold_scale, num_neurons=num_neurons)
+    threshold_scale_recurse = score * scale_recurse_multiply
+    concave_queue = Queue{Int64}()
+    errors = []
+    for roi in keys(concave)
+        enqueue!(concave_queue, roi)
+    end
+    while !isempty(concave_queue)
+        roi = dequeue!(concave_queue)
+        img_roi, error = instance_segment_hull(img_roi, concave[roi][1], concave[roi][2], zscale=zscale, min_neuron_size=min_neuron_size, init_scale=init_scale)
+        if error
+            append!(errors, roi)
+            continue
+        end
+        points = get_points(img_roi, roi)
+        hull = find_convex_hull(points)
+        if is_concave(points, hull, threshold_scale=threshold_scale_recurse)
+            concave[roi] = (points, hull)
+            enqueue!(concave_queue, roi)
+        end
+        # newest neuron will be the highest number
+        roi = maximum(img_roi)
+        points = get_points(img_roi, roi)
+        hull = find_convex_hull(points)
+        if is_concave(points, hull, threshold_scale=threshold_scale_recurse)
+            concave[roi] = (points, hull)
+            enqueue!(concave_queue, roi)
+        end
+    end
+    return (img_roi, errors)
+end
