@@ -1,7 +1,7 @@
 module SegmentationTools
 
-using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, CaSegmentation, Distributions,
-    ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation
+using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, CaSegmentation, Distributions, StatsBase,
+    ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation, WormFeatureDetector
 
 include("unet_visualization.jl")
 include("make_unet_input.jl")
@@ -27,5 +27,11 @@ export
     view_roi_2D,
     view_roi_3D,
     view_centroids_2D,
-    view_centroids_3D
+    view_centroids_3D,
+    instance_segment_concave,
+    instance_segment_hull,
+    hull_watershed,
+    find_convex_hull,
+    find_matching_errors,
+    visualize_roi_predictions
 end # module

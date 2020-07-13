@@ -940,6 +940,22 @@ git-tree-sha1 = "28ffe06d28b1ba8fdb2f36ec7bb079fac81bac0d"
 uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
 version = "0.5.2"
 
+[[WormCurveFinder]]
+deps = ["Images", "LinearAlgebra", "Statistics"]
+git-tree-sha1 = "5ce11d4b13c93a60ed62194d7954b4ac65bcaf52"
+repo-rev = "master"
+repo-url = "git@github.com:flavell-lab/WormCurveFinder.jl.git"
+uuid = "66494c34-da64-11e9-2660-55a8e4876c42"
+version = "0.1.0"
+
+[[WormFeatureDetector]]
+deps = ["CoordinateTransformations", "FlavellBase", "HDF5", "ImageDataIO", "ImageTransformations", "Images", "Interact", "Interpolations", "LinearAlgebra", "MHDIO", "Plots", "ProgressMeter", "StaticArrays", "Statistics", "WormCurveFinder"]
+git-tree-sha1 = "df905a0c19748127de5716fd42aebc04a2c27ca5"
+repo-rev = "master"
+repo-url = "git@github.com:flavell-lab/WormFeatureDetector.jl.git"
+uuid = "bca2e52d-4ef9-4344-ad0d-293e22557a67"
+version = "0.1.0"
+
 [[Zlib_jll]]
 deps = ["Libdl", "Pkg"]
 git-tree-sha1 = "622d8b6dc0c7e8029f17127703de9819134d1b71"
