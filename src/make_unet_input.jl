@@ -165,6 +165,70 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
     return collect(map(x->convert(Float64, x), weights))
 end
 
+"""
+Bins an image in the z-dimension by discarding all but one slice in each set of `scale` slices.
+
+# Arguments
+- `img`: image to bin
+- `scale::Integer`: factor to bin by
+
+# Optional keyword arguments
+
+- `dtype::String`: type of data - either "raw" or "label". Default raw.
+- `idx`: index determining which slice to keep. Default nothing, which selects the first slice in raw data,
+    and the slice that would result in the maximum number of labeled pixels in labeled data.
+"""
+function z_bin_img(img, scale::Integer; dtype="raw", idx=nothing)
+    s = size(img)
+    new_z = s[3] ÷ scale
+    new_img = zeros(UInt16, s[1], s[2], new_z)
+    if dtype == "raw"
+        if idx == nothing
+            idx = 1
+        end
+        for z=1:new_z
+            new_img[:,:,z] = img[:,:,scale*(z-1)+idx]
+        end
+    elseif dtype == "label"
+        if idx == nothing
+            num_pixels = [sum([sum(img[:,:,scale*(z-1)+idx]) for z=1:new_z]) for idx=1:scale]
+            idx = argmax(num_pixels)
+        end
+        for z=1:new_z
+            for x=1:s[1]
+                for y=1:s[2]
+                    min_ind = max(scale*(z-1)+idx-scale÷2, 1)
+                    max_ind = min(scale*(z-1)+idx+scale÷2, s[3])
+                    is_bkg_gap = (sum(img[x,y,min_ind:max_ind] .== 3) > 0)
+                    # background-gap have priority over all other labels
+                    if is_bkg_gap
+                        new_img[x,y,z] = 3
+                    else
+                        new_img[x,y,z] = img[x,y,scale*(z-1)+idx]
+                    end
+                end
+            end
+        end
+    end
+    return (new_img, idx)
+end
+
+"""
+Decreases S/N ratio of an image by the given factor.
+
+# Arguments
+- `img`: Image to reduce S/N of
+
+# Optional keyword arguments
+- `factor::Real`: Factor to reduce S/N by. Default 10.
+- `std::Real`: Standard deviation of image to reduce S/N of
+"""
+function decrease_SN(img; factor::Real=10, std::Real=1)
+    m = median(img)
+    r = Normal(m, std)
+    return collect(map(x->UInt16((x-m) ÷ factor + round(rand(r))), img))
+end
+
 
 """
 Generates an HDF5 file, to be input to the UNet, out of a raw image file and a label file. Assumes 3D data.
@@ -191,9 +255,14 @@ Generates an HDF5 file, to be input to the UNet, out of a raw image file and a l
 - `weight_foreground::Real`: weight of foreground (1) label
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
 - `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
+- `bin_scale::Integer`: scale to bin image in the z-plane. Default 1 (no binning)
+- `SN_reduction_factor`: amount to reduce. Default 1 (no reduction)
+- `SN_percent`: percentile to estimate std of image from. Default 16.
+- `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border. Default false.
 """
 function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_path::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
-        metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=4, weight_bkg_gap::Real=24, delete_boundary::Bool=false)
+    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, delete_boundary::Bool=true,
+    bin_scale::Integer=1, SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
     make_label = (nrrd_path != "")
     if make_label
         label = collect(load(joinpath(rootpath, nrrd_path)))
@@ -211,6 +280,17 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
         end
         raw = permutedims(raw, [2,1,3])
     end
+    std = median(raw) - percentile(collect(Iterators.flatten(raw)), SN_percent)
+    if bin_scale != 1
+        idx=nothing
+        if make_label
+            label,idx = z_bin_img(label, bin_scale; dtype="label")
+        end
+        raw,idx = z_bin_img(raw, bin_scale; idx=idx)
+    end
+    if SN_reduction_factor != 1
+        raw = decrease_SN(raw; factor=SN_reduction_factor, std=std)
+    end
     if make_label
         # Don't weight unlabeled, weight all neurons and bkg equally (corrected for number of pixels)
         if weight_strategy == "proportional"
@@ -219,7 +299,7 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
             weight = map(weight_fn, label)
         # Don't weight unlabeled, weight background pixels nearby neuron pixels higher.
         elseif weight_strategy == "neighbors"
-            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric, delete_boundary=delete_boundary)
+            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric, delete_boundary=delete_boundary, scale_bkg_gap=scale_bkg_gap)
         else
             throw("Weight strategy "*weight_strategy*" not implemented.")
         end
