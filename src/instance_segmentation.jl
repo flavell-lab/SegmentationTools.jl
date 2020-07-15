@@ -31,6 +31,7 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
             img_roi = instance_segmentation(predictions, min_neuron_size=min_neuron_size)
             
             results[frame] = img_roi
+            mhd_str = joinpath(rootpath, mhd_path, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
             
             if centroids_output_path != ""
                 centroids = get_centroids(img_roi)
@@ -40,7 +41,6 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
             end
             
             if activity_output_path != ""
-                mhd_str = joinpath(rootpath, mhd_path, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
                 img = read_img(MHD(mhd_str))
                 activity = get_activity(img_roi, img)
                 activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
