@@ -18,8 +18,8 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
 function instance_segmentation_output(rootpath::String, frames, img_prefix::String, 
-            mhd_path::String, channel::Integer, prediction_path::String,
-            centroids_output_path::String, activity_output_path::String, roi_output_path::String;
+            mhd_path::String, channel::Integer, prediction_path::String, roi_output_path::String;
+            centroids_output_path::String="", activity_output_path::String="",
             min_neuron_size::Integer=10, threshold=0.75)
     n = length(frames)
     results = Dict()
@@ -27,7 +27,7 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
     @showprogress for i in 1:n
         frame = frames[i]
         try
-            predictions = load_predictions(joinpoath(rootpath, prediction_path, "$(frame)_predictions.h5"))
+            predictions = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"))
             img_roi = instance_segmentation(predictions, min_neuron_size=min_neuron_size)
             
             results[frame] = img_roi
