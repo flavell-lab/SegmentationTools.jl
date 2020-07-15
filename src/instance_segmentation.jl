@@ -8,40 +8,41 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `rootpath::String`, `frames`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
     Reads MHD files from, eg, `rootpath/mhd_path/img_prefix_t0123_ch2.mhd` for frame=123 and channel=2, and outputs resulting image.
 - `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
-- `centroids_output_path::String`: Path to output centroids (relative to `rootpath`)
-- `activity_output_path::String`: Path to output activity (relative to `rootpath`)
 - `roi_output_path::String`: Path to output image ROIs (relative to `rootpath`)
 
 # Optional keyword arguments
 
-- `min_vol::Real`: smallest neuron volume. Default the volume of a spheroid with radius 1 but elongated by a factor of 3 in the z-direction.
-- `kernel_σ`: Gaussian kernel size to filter distance image for local peak detection. Default (0.5, 0.5, 1.5).
-- `min_distance::Real`: minimum distance between two local peaks. Default 2.
+- `centroids_output_path::String`: Path to output centroids (relative to `rootpath`). Set to "" (default) to not output centroids.
+- `activity_output_path::String`: Path to output activity (relative to `rootpath`). Set to "" (default) to not output activity.
+- `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
 function instance_segmentation_output(rootpath::String, frames, img_prefix::String, 
             mhd_path::String, channel::Integer, prediction_path::String,
             centroids_output_path::String, activity_output_path::String, roi_output_path::String;
-            min_vol=volume(1, (1,1,3)), threshold=0.75)
+            min_neuron_size::Integer=10, threshold=0.75)
     n = length(frames)
     results = Dict()
     error_frames = Dict()
     @showprogress for i in 1:n
         frame = frames[i]
         try
-            mhd_str = joinpath(rootpath, mhd_path, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
-            img_roi, centroids, activity = instance_segmentation(rootpath, frame, mhd_str, prediction_path,
-                min_vol=min_vol, threshold=threshold)
-
-            results[frame] = (img_roi, centroids, activity)
+            predictions = load_predictions(joinpoath(rootpath, prediction_path, "$(frame)_predictions.h5"))
+            img_roi = instance_segmentation(predictions, min_neuron_size=min_neuron_size)
+            
+            results[frame] = img_roi
             
             if centroids_output_path != ""
+                centroids = get_centroids(img_roi)
                 centroid_path = joinpath(rootpath, centroids_output_path, "$(frame).txt")
                 create_dir(joinpath(rootpath, centroids_output_path))
                 write_centroids(centroids, centroid_path)
             end
-
+            
             if activity_output_path != ""
+                mhd_str = joinpath(rootpath, mhd_path, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
+                img = read_img(MHD(mhd_str))
+                activity = get_activity(img_roi, img)
                 activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
                 create_dir(joinpath(rootpath, activity_output_path))
                 write_activity(activity, activity_path)
@@ -77,42 +78,25 @@ Runs instance segmentation on a frame. Removes detected objects that are too sma
 
 # Arguments
 
-- `rootpath::String`: Working directory.
-- `frame::Integer`: Frame number of the image in question.
-- `mhd::String`: Path to mhd file.
-- `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
+- `predictions: UNet predictions array
 
 # Optional keyword arguments
 
-- `min_vol::Real`: smallest neuron volume. Default the volume of a spheroid with radius 1 but elongated by a factor of 3 in the z-direction.
-- `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
+- `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
 """
-function instance_segmentation(rootpath::String, frame::Integer, mhd::String, prediction_path::String;
-        min_vol::Real=volume(1, (1,1,3)), threshold=0.75)
-    # read image
-    img = read_img(MHD(mhd))
-    predicted_th = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"), threshold=threshold)
-    img_b = remove_small_objects(predicted_th, min_vol);
-    img_roi = consolidate_labeled_img(labels_map(fast_scanning(img_b, 0.5)));
-
-    # get centroids of ROIs
-    centroids = get_centroids(img_roi);
-
-    # get activity of ROIs
-    activity = get_activity(img_roi, img);
-
-    return (img_roi, centroids, activity)
+function instance_segmentation(predictions; min_neuron_size::Integer=10)
+    return consolidate_labeled_img(labels_map(fast_scanning(predictions, 0.5)), min_neuron_size);
 end
 
 
-""" Converts an instance-segmentation image to a ROI image. """
-function consolidate_labeled_img(labeled_img)
+""" Converts an instance-segmentation image to a ROI image. Ignores ROIs smaller than the minimum size. """
+function consolidate_labeled_img(labeled_img, min_neuron_size)
     labels = []
     bkg_label = 0
     max_sum = 0
     for i=minimum(labeled_img):maximum(labeled_img)
         s = sum(labeled_img .== i)
-        if s > 0
+        if s > min_neuron_size
             append!(labels, i)
         end
         if s > max_sum
