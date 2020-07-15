@@ -113,7 +113,7 @@ function consolidate_labeled_img(labeled_img, min_neuron_size)
             count = count + 1
         end
     end
-    return map(x->label_dict[x], labeled_img)
+    return map(x->(x in keys(label_dict) ? label_dict[x] : UInt16(0), labeled_img)
 end
 
 """
