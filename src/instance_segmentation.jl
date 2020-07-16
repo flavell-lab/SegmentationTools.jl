@@ -27,7 +27,7 @@ function instance_segmentation_output(rootpath::String, frames, img_prefix::Stri
     @showprogress for i in 1:n
         frame = frames[i]
         try
-            predictions = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5"))
+            predictions = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5")) .> threshold
             img_roi = instance_segmentation(predictions, min_neuron_size=min_neuron_size)
             
             results[frame] = img_roi
