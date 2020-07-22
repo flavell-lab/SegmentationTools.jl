@@ -29,5 +29,6 @@ export
     view_centroids_2D,
     view_centroids_3D,
     instance_segment_concave,
+    get_points,
     distance
 end # module
