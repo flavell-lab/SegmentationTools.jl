@@ -293,7 +293,7 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
         if make_label
             label = resample_img(label, bin_scale; dtype="label")
         end
-        raw = resample_img(raw, bin_scale; idx=idx)
+        raw = resample_img(raw, bin_scale)
     end
     if SN_reduction_factor != 1
         raw = decrease_SN(raw; factor=SN_reduction_factor, std=std)
