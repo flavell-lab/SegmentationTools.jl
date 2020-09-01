@@ -166,51 +166,59 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
 end
 
 """
-Bins an image in the z-dimension by discarding all but one slice in each set of `scale` slices.
+Scales an image down by using linear interpolation for the raw image, and bkg-gap priority interpoalation for the labels.
 
 # Arguments
-- `img`: image to bin
-- `scale::Integer`: factor to bin by
+- `img`: image to scale
+- `scales`: array of factors to scale down (bin) by in each dimension. Must be positive. 
 
 # Optional keyword arguments
 
-- `dtype::String`: type of data - either "raw" or "label". Default raw.
-- `idx`: index determining which slice to keep. Default nothing, which selects the first slice in raw data,
-    and the slice that would result in the maximum number of labeled pixels in labeled data.
+- `dtype::String`: type of data - either "raw", "label", or "weight". Default raw.
 """
-function z_bin_img(img, scale::Integer; dtype="raw", idx=nothing)
+function resample_img(img, scales; dtype="raw", idx=nothing)
     s = size(img)
-    new_z = s[3] ÷ scale
-    new_img = zeros(UInt16, s[1], s[2], new_z)
-    if dtype == "raw"
-        if idx == nothing
-            idx = 1
-        end
-        for z=1:new_z
-            new_img[:,:,z] = img[:,:,scale*(z-1)+idx]
-        end
-    elseif dtype == "label"
-        if idx == nothing
-            num_pixels = [sum([sum(img[:,:,scale*(z-1)+idx]) for z=1:new_z]) for idx=1:scale]
-            idx = argmax(num_pixels)
-        end
-        for z=1:new_z
-            for x=1:s[1]
-                for y=1:s[2]
-                    min_ind = max(scale*(z-1)+idx-scale÷2, 1)
-                    max_ind = min(scale*(z-1)+idx+scale÷2, s[3])
-                    is_bkg_gap = (sum(img[x,y,min_ind:max_ind] .== 3) > 0)
-                    # background-gap have priority over all other labels
-                    if is_bkg_gap
-                        new_img[x,y,z] = 3
-                    else
-                        new_img[x,y,z] = img[x,y,scale*(z-1)+idx]
-                    end
+    p = prod(scales)
+    new_idx = Tuple(map(x->Int64(x), s .÷ scales))
+    if dtype in ["raw", "label"]
+        new_img = zeros(UInt16, new_idx)
+    else
+        new_img = zeros(new_idx)
+    end
+    for c1 in CartesianIndices(new_idx)
+        prev_idx = (Tuple(c1) .- 1) .* scales .+ 1
+        idx = prev_idx .+ scales
+        min_idx = map(x->Int32(floor(x)), prev_idx)
+        max_idx = map(x->(x == floor(x)) ? Int32(x - 1) : Int32(floor(x)), idx)
+        if dtype == "label"
+            tot = [0.0,0.0,0.0,0.0]
+            for c2 in CartesianIndices(Tuple(collect((min_idx[i]:max_idx[i] for i=1:length(s)))))
+                tot[img[c2]+1] += prod([min(c2[j] + 1, idx[j]) - max(prev_idx[j], c2[j]) for j=1:length(s)])
+            end
+            tot_scaled = tot ./ p
+            if tot[4] >= 0.5 || tot_scaled[4] >= 0.5
+                new_img[c1] = 3
+            else
+                a = argmax(tot[2:4])
+                if tot[a+1] >= 1 || tot_scaled[a+1] >= 0.5
+                    new_img[c1] = a
+                else
+                    new_img[c1] = 0
                 end
+            end
+        else
+            tot = 0
+            for c2 in CartesianIndices(Tuple(collect((min_idx[i]:max_idx[i] for i=1:length(s)))))
+                tot += img[c2] * prod([min(c2[j] + 1, idx[j]) - max(prev_idx[j], c2[j]) for j=1:length(s)])
+            end
+            if dtype == "raw"
+                new_img[c1] = UInt16(round(tot / p))
+            elseif dtype == "weight"
+                new_img[c1] = tot / p
             end
         end
     end
-    return (new_img, idx)
+    return new_img
 end
 
 """
@@ -255,14 +263,14 @@ Generates an HDF5 file, to be input to the UNet, out of a raw image file and a l
 - `weight_foreground::Real`: weight of foreground (1) label
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
 - `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
-- `bin_scale::Integer`: scale to bin image in the z-plane. Default 1 (no binning)
+- `bin_scale`: scale to bin image in each dimension [X,Y,Z]. Default [1,1,1] (no binning).
 - `SN_reduction_factor`: amount to reduce. Default 1 (no reduction)
 - `SN_percent`: percentile to estimate std of image from. Default 16.
 - `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border. Default false.
 """
 function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_path::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
     metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, delete_boundary::Bool=true,
-    bin_scale::Integer=1, SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
+    bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
     make_label = (nrrd_path != "")
     if make_label
         label = collect(load(joinpath(rootpath, nrrd_path)))
@@ -281,12 +289,11 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
         raw = permutedims(raw, [2,1,3])
     end
     std = median(raw) - percentile(collect(Iterators.flatten(raw)), SN_percent)
-    if bin_scale != 1
-        idx=nothing
+    if bin_scale != [1,1,1]
         if make_label
-            label,idx = z_bin_img(label, bin_scale; dtype="label")
+            label = resample_img(label, bin_scale; dtype="label")
         end
-        raw,idx = z_bin_img(raw, bin_scale; idx=idx)
+        raw = resample_img(raw, bin_scale; idx=idx)
     end
     if SN_reduction_factor != 1
         raw = decrease_SN(raw; factor=SN_reduction_factor, std=std)

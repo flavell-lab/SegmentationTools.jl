@@ -1,7 +1,7 @@
 name = "SegmentationTools"
 uuid = "e237ef6b-7742-4eaa-bd5c-c836a2002561"
 authors = ["goldenratio1618 <adamatanas@gmail.com>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"

@@ -30,5 +30,6 @@ export
     view_centroids_3D,
     instance_segment_concave,
     get_points,
-    distance
+    distance,
+    resample_img
 end # module
