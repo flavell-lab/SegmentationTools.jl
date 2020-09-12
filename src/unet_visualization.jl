@@ -148,3 +148,31 @@ function display_predictions_3D(raw, label, weight, predictions_array; cols::Int
     end
 end
 
+"""
+Computes the mean IOU between `raw_file` and a `prediction_file` HDF5 files.
+
+By default, assumes a threshold of 0.5, but this can be changed with the `threshold` parameter.
+"""
+function compute_mean_iou(raw_file, prediction_file; threshold=0.5)
+    h5open(raw_file) do actual
+        h5open(prediction_file) do pred
+            label = read(actual, "label")[:,:,:,1,1]
+            weights = read(actual, "weight")[:,:,:,1,1]
+            predictions = read(pred, "predictions")[:,:,:,2]
+            p = predictions .> threshold
+            l = map(x->convert(Bool, x), label)
+            neuron_i = 0
+            neuron_u = 0
+            bkg_i = 0
+            bkg_u = 0
+            for idx in CartesianIndices(p)
+                neuron_i += (p[idx] & l[idx]) * weights[idx]
+                neuron_u += (p[idx] | l[idx]) * weights[idx]
+                bkg_i += (~p[idx] & ~l[idx]) * weights[idx]
+                bkg_u += (~p[idx] | ~l[idx]) * weights[idx]
+            end
+            return (neuron_i/neuron_u + bkg_i/bkg_u) / 2
+        end
+    end
+end
+
