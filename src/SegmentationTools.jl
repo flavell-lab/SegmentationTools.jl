@@ -31,5 +31,6 @@ export
     instance_segment_concave,
     get_points,
     distance,
-    resample_img
+    resample_img,
+    compute_mean_iou
 end # module
