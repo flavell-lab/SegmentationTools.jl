@@ -73,11 +73,11 @@ down from the foreground weight. "Background-gap" data that serves to mark bound
 - `metric::String`: Metric to compute distance. Default taxicab (currently, no other metrics are implemented, but they will likely be added in a future release.)
 - `weight_foreground::Real`: weight of foreground (1) label
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
-- `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
+- `boundary_weight`: weight of foreground (2) pixels adjacent to background (1 and 3) pixels. Default nothing, which uses default foreground weight.
 - `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border.
 """
 function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::String="taxicab", weight_foreground::Real=4,
-        weight_bkg_gap::Real=24, delete_boundary::Bool=false, scale_bkg_gap::Bool=false)
+        weight_bkg_gap::Real=24, boundary_weight=nothing, scale_bkg_gap::Bool=false)
     weights = zeros(size(label))
     # add flat weight to background, so regions far from neurons get counted
     # this will be overwritten with higher weights near neurons
@@ -129,7 +129,7 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
     weights = weights .* labeled
     
     # don't weight boundary points and make neurons smaller (neural net needs more flexibility here, and their labeling is hard to get consistent)
-    if delete_boundary
+    if boundary_weight != nothing
         for idx in CartesianIndices(size(weights))
             nbs = get_neighbors_cartesian(idx, size(weights))
             for nb in nbs
@@ -139,7 +139,7 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
                 end
                 # only overwrite neuron pixels bordering background
                 if (label[idx] == 1) && (label[nb] != label[idx]) && (weights[nb] != 0)
-                    weights[idx] = 0
+                    weights[idx] = boundary_weight
                 end
             end
         end
@@ -262,14 +262,14 @@ Generates an HDF5 file, to be input to the UNet, out of a raw image file and a l
 - `scale_z::Real`: Inverse of the distance in the z-plane, in pixels, before the background data weight is halved. Default 1.
 - `weight_foreground::Real`: weight of foreground (1) label
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
-- `delete_boundary::Bool`: whether to set the weight of foreground (2) pixels adjacent to background (1 and 3) pixels to 0. Default false.
+- `boundary_weight`: weight of foreground (2) pixels adjacent to background (1 and 3) pixels. Default nothing, which uses default foreground weight.
 - `bin_scale`: scale to bin image in each dimension [X,Y,Z]. Default [1,1,1] (no binning).
 - `SN_reduction_factor`: amount to reduce. Default 1 (no reduction)
 - `SN_percent`: percentile to estimate std of image from. Default 16.
 - `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border. Default false.
 """
 function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_path::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
-    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, delete_boundary::Bool=true,
+    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
     bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
     make_label = (nrrd_path != "")
     if make_label
@@ -306,7 +306,7 @@ function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_p
             weight = map(weight_fn, label)
         # Don't weight unlabeled, weight background pixels nearby neuron pixels higher.
         elseif weight_strategy == "neighbors"
-            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric, delete_boundary=delete_boundary, scale_bkg_gap=scale_bkg_gap)
+            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric, boundary_weight=boundary_weight, scale_bkg_gap=scale_bkg_gap)
         else
             throw("Weight strategy "*weight_strategy*" not implemented.")
         end
