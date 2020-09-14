@@ -138,7 +138,7 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
 - `size`: size of plot per row. Default (1800, 750).
-- `axis`: axis to project
+- `axis`: axis to project, default 3
 """
 function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750), axis=3)
     @manipulate for z=1:size(raw)[axis]
