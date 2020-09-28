@@ -100,8 +100,9 @@ differential (in the order the predictions were specified in the array).
 
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
 - `size`: size of plot per row. Default (1800, 750).
+- `display_accuracy::Bool`: whether to display prediction accuracy (green for match, red for mismatch). Default true.
 """
-function display_predictions_2D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750))
+function display_predictions_2D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750), display_accuracy::Bool=true)
     plots = []
     if label != nothing
         push!(plots, view_label_overlay(raw, label, weight, contrast=2))
@@ -114,7 +115,9 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
     for predictions in predictions_array
         if label != nothing
             push!(plots, view_label_overlay(predictions, label, weight, contrast=2))
-            push!(plots, visualize_prediction_accuracy_2D(predictions, label, weight))
+            if display_accuracy
+                push!(plots, visualize_prediction_accuracy_2D(predictions, label, weight))
+            end
         else
             gray = map(x->min(x, 1), predictions * 2 ./ maximum(predictions))
             push!(plots, RGB.(gray, gray, gray))
@@ -139,12 +142,13 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
 - `size`: size of plot per row. Default (1800, 750).
 - `axis`: axis to project, default 3
+- `display_accuracy::Bool`: whether to display prediction accuracy (green for match, red for mismatch). Default true.
 """
-function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750), axis=3)
+function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750), axis=3, display_accuracy::Bool=true)
     @manipulate for z=1:size(raw)[axis]
         i = [(dim == axis) ? z : Colon() for dim=1:3]
         display_predictions_2D(getindex(raw, i[1], i[2], i[3]), (label == nothing ? nothing : getindex(label, i[1], i[2], i[3])),
-            (weight == nothing ? nothing : getindex(weight, i[1], i[2], i[3])), [getindex(predictions, i[1], i[2], i[3]) for predictions in predictions_array]; cols=cols, plot_size=plot_size)
+            (weight == nothing ? nothing : getindex(weight, i[1], i[2], i[3])), [getindex(predictions, i[1], i[2], i[3]) for predictions in predictions_array]; cols=cols, plot_size=plot_size, display_accuracy=display_accuracy)
     end
 end
 
