@@ -414,8 +414,8 @@ end
 
 
 """
-Generates cropping parameters from a frame by detecting the worm's location with thresholding and noise removal.
-Uses a very primitive form of segmentation to accomplish this.
+Generates cropping and rotation parameters from a frame by detecting the worm's location with thresholding and noise removal.
+The cropping parameters are designed to remove the maximum fraction of non-worm pixels.
 
 # Arguments
 - `img`: Image to crop
@@ -423,9 +423,8 @@ Uses a very primitive form of segmentation to accomplish this.
 # Optional keyword arguments
 - `threshold`: Number of standard deviations above mean for a pixel to be considered part of the worm
 - `size_threshold`: Number of adjacent pixels that must meet the threshold to be counted.
-- `crop_pad`: Number of pixels to pad in each dimension.
 """
-function get_cropping_parameters(img; threshold::Real=3, size_threshold=10, crop_pad=[3,3,3])
+function get_cropping_parameters(img; threshold::Real=3, size_threshold=10)
     # threshold image to detect worm
     thresh_img = ski_morphology.remove_small_objects(img .> mean(img) + threshold*std(img), size_threshold)
     # extract worm points
@@ -454,9 +453,9 @@ function get_cropping_parameters(img; threshold::Real=3, size_threshold=10, crop
 
 
     # get cropping parameters
-    crop_x = (Int64(floor(minimum(distances) + worm_centroid[1])) - crop_pad[1], Int64(ceil(maximum(distances) + worm_centroid[1])) + crop_pad[1])
-    crop_y = (Int64(floor(minimum(distances_short) + worm_centroid[2])) - crop_pad[2], Int64(ceil(maximum(distances_short) + worm_centroid[2])) + crop_pad[2])
-    crop_z = (Int64(floor(minimum(distances_z) + worm_centroid[3])) - crop_pad[3], Int64(ceil(maximum(distances_z) + worm_centroid[3])) + crop_pad[3])
+    crop_x = (Int64(floor(minimum(distances) + worm_centroid[1])), Int64(ceil(maximum(distances) + worm_centroid[1])))
+    crop_y = (Int64(floor(minimum(distances_short) + worm_centroid[2])), Int64(ceil(maximum(distances_short) + worm_centroid[2])))
+    crop_z = (Int64(floor(minimum(distances_z) + worm_centroid[3])), Int64(ceil(maximum(distances_z) + worm_centroid[3])))
 
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
