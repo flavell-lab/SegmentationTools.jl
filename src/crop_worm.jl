@@ -44,7 +44,7 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         if cx == nothing
             cx = [crop_x[1]-crop_pad[1], crop_x[2]+crop_pad[1]]
             cx = [max(cx[1], new_img_z.offsets[1]+1), min(cx[2], new_img_z.offsets[1] + size(new_img_z)[1])]
-            increase_crop_size!(cx, new_img_z.offsets[1] + size(new_img_z)[1], min_crop_size[1])
+            increase_crop_size!(cx, new_img_z.offsets[1] + 1, new_img_z.offsets[1] + size(new_img_z)[1], min_crop_size[1])
         end
         
         if cy == nothing
@@ -75,13 +75,13 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
     return new_img[1:cx[2]-cx[1]+1, 1:cy[2]-cy[1]+1, 1:cz[2]-cz[1]+1]
 end
 
-""" Increases crop size of a `crop`. Requires the size of the image `img_size`, and the desired minimum crop size `crop_size`. """
-function increase_crop_size!(crop, img_size, crop_size)
-    if crop_size > img_size
+""" Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
+function increase_crop_size!(crop, min_ind, max_ind, crop_size)
+    if crop_size > max_ind - min_ind + 1
         throw("Crop size cannot be larger than image size")
     end
     while crop[2] - crop[1] < crop_size
-        d = argmax([crop[1] - 1, img_size - crop[2]])
+        d = argmax([crop[1] - min_ind, max_ind - crop[2]])
         crop[d] += 2*d - 3
     end
     nothing
