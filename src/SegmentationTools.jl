@@ -35,5 +35,6 @@ export
     compute_mean_iou,
     detect_incorrect_merges,
     watershed_threshold,
-    instance_segmentation_threshold
+    instance_segmentation_threshold,
+    get_cropping_parameters
 end # module
