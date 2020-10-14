@@ -427,7 +427,7 @@ Uses a very primitive form of segmentation to accomplish this.
 """
 function get_cropping_parameters(img; threshold::Real=3, size_threshold=10, crop_pad=[3,3,3])
     # threshold image to detect worm
-    thresh_img = consolidate_labeled_img(labels_map(fast_scanning(img .> mean(img) + threshold*std(img), 0.2)), size_threshold);
+    thresh_img = ski_morphology.remove_small_objects(img .> mean(img) + threshold*std(img), size_threshold)
     # extract worm points
     frame_worm_nonzero = map(x->collect(Tuple(x)), filter(x->thresh_img[x]!=0, CartesianIndices(thresh_img)))
     # get center of worm
@@ -460,4 +460,5 @@ function get_cropping_parameters(img; threshold::Real=3, size_threshold=10, crop
 
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
+
 
