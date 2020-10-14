@@ -1,13 +1,15 @@
 module SegmentationTools
 
 using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, Distributions, StatsBase, LinearAlgebra, PyCall,
-    ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation, WormFeatureDetector
+    ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation, WormFeatureDetector,
+    ImageTransformations, CoordinateTransformations, StaticArrays, Interpolations, Rotations
 
 include("init.jl")
 include("unet_visualization.jl")
 include("make_unet_input.jl")
 include("instance_segmentation.jl")
 include("centroid_visualization.jl")
+include("crop_worm.jl")
 
 export
     instance_segmentation_output,
@@ -37,5 +39,6 @@ export
     detect_incorrect_merges,
     watershed_threshold,
     instance_segmentation_threshold,
-    get_cropping_parameters
+    get_cropping_parameters,
+    crop_rotate
 end # module
