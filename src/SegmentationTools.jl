@@ -1,6 +1,6 @@
 module SegmentationTools
 
-using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, Distributions, StatsBase,
+using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, Distributions, StatsBase, LinearAlgebra,
     ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation, WormFeatureDetector
 
 include("unet_visualization.jl")
