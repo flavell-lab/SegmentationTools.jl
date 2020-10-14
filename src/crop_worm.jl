@@ -44,13 +44,13 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         if cx == nothing
             cx = [crop_x[1]-crop_pad[1], crop_x[2]+crop_pad[1]]
             cx = [max(cx[1], new_img_z.offsets[1]+1), min(cx[2], new_img_z.offsets[1] + size(new_img_z)[1])]
-            increase_crop_size!(cx, imsize[1], min_crop_size[1])
+            increase_crop_size!(cx, new_img_z.offsets[1] + size(new_img_z)[1], min_crop_size[1])
         end
         
         if cy == nothing
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
-            increase_crop_size!(cy, imsize[2], min_crop_size[2])
+            increase_crop_size!(cy, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
         end
 
         for x=cx[1]:cx[2]
