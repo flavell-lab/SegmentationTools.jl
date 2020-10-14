@@ -22,7 +22,7 @@ Otherwise, it can be set to a numerical value.
 Outputs a new image that is the cropped and rotated version of `img`.
 """
 function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="median", degree=Linear(), dtype=Int16, crop_pad=[3,3,3], min_crop_size=[210,96,51])
-    new_img = zeros(dtype, (crop_x[2] - crop_x[1] + 1, crop_y[2] - crop_y[1] + 1, crop_z[2] - crop_z[1] + 1))
+    new_img = nothing
     if fill == "median"
         fill_val = dtype(round(median(img)))
     else
@@ -51,6 +51,10 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
             increase_crop_size!(cy, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
+        end
+
+        if new_img == nothing
+            new_img = zeros(dtype, (cx[2] - cx[1] + 1, cy[2] - cy[1] + 1, cz[2] - cz[1] + 1))
         end
 
         for x=cx[1]:cx[2]
