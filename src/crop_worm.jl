@@ -32,7 +32,7 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
     imsize = size(img)
     # make sure we aren't trying to crop past image boundary after adding crop padding
     cz = [max(crop_z[1]-crop_pad[3], 1), min(crop_z[2]+crop_pad[3], imsize[3])]
-    increase_crop_size!(cz, imsize[3], min_crop_size[3])
+    increase_crop_size!(cz, 1, imsize[3], min_crop_size[3])
 
     cx = nothing 
     cy = nothing 
@@ -50,7 +50,7 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         if cy == nothing
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
-            increase_crop_size!(cy, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
+            increase_crop_size!(cy, new_img_z.offsets[1] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
         end
 
         if new_img == nothing
