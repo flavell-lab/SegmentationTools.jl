@@ -89,28 +89,34 @@ function instance_segmentation(predictions; min_neuron_size::Integer=7)
 end
 
 
-""" Converts an instance-segmentation image to a ROI image. Ignores ROIs smaller than the minimum size. """
+""" Converts an instance-segmentation image `labeled_img` to a ROI image. Ignores ROIs smaller than the minimum size `min_neuron_size`. """
 function consolidate_labeled_img(labeled_img, min_neuron_size)
     labels = []
+    # background label will have the majority of pixels
     bkg_label = 0
     max_sum = 0
-    for i=minimum(labeled_img):maximum(labeled_img)
-        s = sum(labeled_img .== i)
-        if s > min_neuron_size
-            append!(labels, i)
+
+    counts = Dict()
+    for i in labeled_img
+        if i in keys(counts)
+            counts[i] += 1
+        else
+            counts[i] = 1
         end
-        if s > max_sum
-            bkg_label=i
-            max_sum = s
+
+        if counts[i] > max_sum
+            max_sum = counts[i]
+            bkg_label = i
         end
     end
+
     label_dict = Dict()
     label_dict[bkg_label] = UInt16(0)
-    count = 1
-    for i=1:length(labels)
-        if labels[i] != bkg_label
-            label_dict[labels[i]] = UInt16(count)
-            count = count + 1
+    roi = 1
+    for i in keys(counts)
+        if (i != bkg_label) && (counts[i] >= min_neuron_size)
+            label_dict[i] = UInt16(roi)
+            roi = roi + 1
         end
     end
     return map(x->(x in keys(label_dict) ? label_dict[x] : UInt16(0)), labeled_img)
