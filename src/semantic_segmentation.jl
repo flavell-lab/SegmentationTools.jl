@@ -15,5 +15,5 @@ function call_unet(data_path, unet_path, param_path)
     param_file = open(new_param_path, "w")
     write(param_file, new_params)
     close(param_file)
-    run(Cmd[unet_path, "--config", new_param_path])
+    run(Cmd([unet_path, "--config", new_param_path]))
 end
