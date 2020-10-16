@@ -7,6 +7,7 @@ using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, Distributions, StatsBase,
 include("init.jl")
 include("unet_visualization.jl")
 include("make_unet_input.jl")
+include("semantic_segmentation.jl")
 include("instance_segmentation.jl")
 include("centroid_visualization.jl")
 include("crop_worm.jl")
@@ -40,5 +41,6 @@ export
     watershed_threshold,
     instance_segmentation_threshold,
     get_cropping_parameters,
-    crop_rotate
+    crop_rotate,
+    call_unet
 end # module
