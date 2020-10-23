@@ -1,5 +1,5 @@
 """
-Runs instance segmentation on all given frames and outputs to various files (centroids, activity measurements, and image ROIs).
+Runs instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
 Skips a given output method if the corresponding output directory was empty
 Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
 
@@ -241,7 +241,15 @@ function hull_watershed(points, hull; zscale=1, init_scale=0.7)
     return (neuron_1, neuron_2)
 end
 
+"""
+Watersheds an ROI, taking as input its peaks (found previously via thresholding) and the UNet raw output.
 
+# Arguments:
+
+- `points`: Set of points in the ROI to watershed.
+- `centroid_matches`: Set of centroids in the points in question - each centroid will spawn a new ROI via watershed.
+- `predictions`: UNet raw output (*not* thresholded)
+"""
 function watershed_threshold(points, centroid_matches, predictions)
     min_dim = [minimum([points[i][l] for i=1:length(points)]) - 1 for l = 1:length(points[1])]
     max_dim = [maximum([points[i][l] for i=1:length(points)]) for l = 1:length(points[1])]
@@ -262,6 +270,18 @@ function watershed_threshold(points, centroid_matches, predictions)
     return neurons
 end
 
+"""
+Detects incorrectly merged ROIs via thresholding. Thresholds the UNet raw output multiple times, checking if 
+an ROI gets split into multiple, smaller ROIs at higher threshold values.
+
+# Arguments: 
+
+- `img_roi`: Current ROIs for the image - the method checks each ROI for incorrect merging
+- `predictions`: UNet raw output (*not* thresholded)
+- `thresholds`: Array of threshold values - at each value, check if an ROI was split
+- `neuron_sizes`: Array of neuron size values, one per threshold.
+    Neurons that were found in a threshold that are smaller than the corresponding value are discarded and not counted for ROI split evidence.
+"""
 function detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
     bad_rois = Dict()
     for t in 1:length(thresholds)
@@ -283,7 +303,21 @@ function detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
     return bad_rois
 end
 
-function instance_segmentation_threshold(img_roi, predictions; thresholds=[0.8, 0.9], neuron_sizes=[4,4])
+"""
+Further instance segments a preliminary ROI image by thresholding UNet predictions and checking if ROIs split during thresholding.
+
+# Arguments:
+
+- `img_roi`: image that maps points to their current ROIs
+- `predictions`: UNet raw predictions
+
+# Optional keyword arguments
+- `thresholds`: Array of threshold values - at each value, check if an ROI was split. Default [0.7, 0.8, 0.9]
+- `neuron_sizes`: Array of neuron size values, one per threshold.
+    Neurons that were found in a threshold that are smaller than the corresponding value are discarded and not counted for ROI split evidence.
+    Default [5,4,4]
+"""
+function instance_segmentation_threshold(img_roi, predictions; thresholds=[0.7, 0.8, 0.9], neuron_sizes=[5,4,4])
     img_roi_new = copy(img_roi)
     bad_rois = detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
     idx = maximum(img_roi) + 1
