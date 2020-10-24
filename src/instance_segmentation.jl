@@ -1,5 +1,5 @@
 """
-Runs instance segmentation on all given frames and outputs to various files (centroids, activity measurements, and image ROIs).
+Runs instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
 Skips a given output method if the corresponding output directory was empty
 Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
 
@@ -82,35 +82,41 @@ Runs instance segmentation on a frame. Removes detected objects that are too sma
 
 # Optional keyword arguments
 
-- `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
+- `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 7.
 """
-function instance_segmentation(predictions; min_neuron_size::Integer=10)
+function instance_segmentation(predictions; min_neuron_size::Integer=7)
     return consolidate_labeled_img(labels_map(fast_scanning(predictions, 0.5)), min_neuron_size);
 end
 
 
-""" Converts an instance-segmentation image to a ROI image. Ignores ROIs smaller than the minimum size. """
+""" Converts an instance-segmentation image `labeled_img` to a ROI image. Ignores ROIs smaller than the minimum size `min_neuron_size`. """
 function consolidate_labeled_img(labeled_img, min_neuron_size)
     labels = []
+    # background label will have the majority of pixels
     bkg_label = 0
     max_sum = 0
-    for i=minimum(labeled_img):maximum(labeled_img)
-        s = sum(labeled_img .== i)
-        if s > min_neuron_size
-            append!(labels, i)
+
+    counts = Dict()
+    for i in labeled_img
+        if i in keys(counts)
+            counts[i] += 1
+        else
+            counts[i] = 1
         end
-        if s > max_sum
-            bkg_label=i
-            max_sum = s
+
+        if counts[i] > max_sum
+            max_sum = counts[i]
+            bkg_label = i
         end
     end
+
     label_dict = Dict()
     label_dict[bkg_label] = UInt16(0)
-    count = 1
-    for i=1:length(labels)
-        if labels[i] != bkg_label
-            label_dict[labels[i]] = UInt16(count)
-            count = count + 1
+    roi = 1
+    for i in keys(counts)
+        if (i != bkg_label) && (counts[i] >= min_neuron_size)
+            label_dict[i] = UInt16(roi)
+            roi = roi + 1
         end
     end
     return map(x->(x in keys(label_dict) ? label_dict[x] : UInt16(0)), labeled_img)
@@ -186,7 +192,7 @@ end
 """
 Computes the distance between two points `p1` and `p2`, with the z-axis scaled by `zscale`.
 """
-function distance(p1, p2; zscale=2.78)
+function distance(p1, p2; zscale=1)
     dim_dist = collect(Float64, (p1 .- p2) .* (p1 .- p2))
     dim_dist[3] *= zscale^2
     return sqrt(sum(dim_dist))
@@ -194,9 +200,9 @@ end
 
 """
 Does watershed segmentation on a set of `points` and their convex `hull`, with the intent of splitting concave neurons.
-Scales z-axis by `zscale` (default 2.78) and expands first segmented neuron by `init_scale` to determine second neuron location.
+Scales z-axis by `zscale` (default 1) and expands first segmented neuron by `init_scale` to determine second neuron location.
 """
-function hull_watershed(points, hull; zscale=2.78, init_scale=0.7)
+function hull_watershed(points, hull; zscale=1, init_scale=0.7)
     weight = sum([(1 - hull[pt][1]) * hull[pt][2] for pt in keys(hull)])
     # get the farthest point from the concave points and declare it the center of the first neuron
     dist_1 = [sum([distance(p1, p2, zscale=zscale) * (1 - hull[p2][1]) * hull[p2][2] for p2 in keys(hull)])/weight for p1 in points]
@@ -236,11 +242,109 @@ function hull_watershed(points, hull; zscale=2.78, init_scale=0.7)
 end
 
 """
+Watersheds an ROI, taking as input its peaks (found previously via thresholding) and the UNet raw output.
+
+# Arguments:
+
+- `points`: Set of points in the ROI to watershed.
+- `centroid_matches`: Set of centroids in the points in question - each centroid will spawn a new ROI via watershed.
+- `predictions`: UNet raw output (*not* thresholded)
+"""
+function watershed_threshold(points, centroid_matches, predictions)
+    min_dim = [minimum([points[i][l] for i=1:length(points)]) - 1 for l = 1:length(points[1])]
+    max_dim = [maximum([points[i][l] for i=1:length(points)]) for l = 1:length(points[1])]
+    watershed_img = zeros(Tuple(max_dim[l] .- min_dim[l] for l = 1:length(min_dim)))
+    for idx in CartesianIndices(watershed_img)
+        point = collect(Tuple(idx)) .+ min_dim
+        watershed_img[idx] = -predictions[CartesianIndex(Tuple(point))]
+    end
+    watershed_markers = zeros(Int64, size(watershed_img))
+    for (i, centroid) in enumerate(centroid_matches)
+        watershed_markers[CartesianIndex(Tuple(collect(map(x->Int32(x), centroid)) .- min_dim))] = i
+    end
+    
+    results = labels_map(watershed(watershed_img, watershed_markers))
+    
+    neurons = [[p for p in points if results[CartesianIndex(Tuple(collect(p) .- min_dim))] == i] for i=1:length(centroid_matches)]
+    
+    return neurons
+end
+
+"""
+Detects incorrectly merged ROIs via thresholding. Thresholds the UNet raw output multiple times, checking if 
+an ROI gets split into multiple, smaller ROIs at higher threshold values.
+
+# Arguments: 
+
+- `img_roi`: Current ROIs for the image - the method checks each ROI for incorrect merging
+- `predictions`: UNet raw output (*not* thresholded)
+- `thresholds`: Array of threshold values - at each value, check if an ROI was split
+- `neuron_sizes`: Array of neuron size values, one per threshold.
+    Neurons that were found in a threshold that are smaller than the corresponding value are discarded and not counted for ROI split evidence.
+"""
+function detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
+    bad_rois = Dict()
+    for t in 1:length(thresholds)
+        img_roi_t = instance_segmentation(predictions .> thresholds[t], min_neuron_size=neuron_sizes[t])
+        centroids = get_centroids(img_roi_t)
+        for i=1:maximum(img_roi)
+            points = get_points(img_roi, i)
+            centroid_matches = []
+            for centroid in centroids
+                if centroid in points
+                    push!(centroid_matches, centroid)
+                end
+            end
+            if length(centroid_matches) >= length(get(bad_rois, i, [0,0]))
+                bad_rois[i] = centroid_matches
+            end
+        end
+    end
+    return bad_rois
+end
+
+"""
+Further instance segments a preliminary ROI image by thresholding UNet predictions and checking if ROIs split during thresholding.
+
+# Arguments:
+
+- `img_roi`: image that maps points to their current ROIs
+- `predictions`: UNet raw predictions
+
+# Optional keyword arguments
+- `thresholds`: Array of threshold values - at each value, check if an ROI was split. Default [0.7, 0.8, 0.9]
+- `neuron_sizes`: Array of neuron size values, one per threshold.
+    Neurons that were found in a threshold that are smaller than the corresponding value are discarded and not counted for ROI split evidence.
+    Default [5,4,4]
+"""
+function instance_segmentation_threshold(img_roi, predictions; thresholds=[0.7, 0.8, 0.9], neuron_sizes=[5,4,4])
+    img_roi_new = copy(img_roi)
+    bad_rois = detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
+    idx = maximum(img_roi) + 1
+    for roi in keys(bad_rois)
+        neurons = watershed_threshold(get_points(img_roi, roi), bad_rois[roi], predictions)
+        for i in 1:length(neurons)
+            if i == 1
+                continue
+            end
+            neuron = neurons[i]
+            for pt in neuron
+                img_roi_new[CartesianIndex(pt)] = idx
+            end
+            idx = idx + 1
+        end
+    end
+    return img_roi_new
+end
+
+
+
+"""
 Instance segments an image `img_roi` given set of `points` with a given convex `hull` via watershedding.
-Discards neurons with size less than `min_neuron_size` (default 10), scales z-axis by `zscale` (default 2.78),
+Discards neurons with size less than `min_neuron_size` (default 10), scales z-axis by `zscale` (default 1),
 and expands first segmented neuron by `init_scale` to determine second neuron location.
 """
-function instance_segment_hull(img_roi, points, hull; min_neuron_size=10, zscale=2.78, init_scale=0.7)
+function instance_segment_hull(img_roi, points, hull; min_neuron_size=10, zscale=1, init_scale=0.7)
     neuron_1, neuron_2 = hull_watershed(points, hull, zscale=zscale, init_scale=init_scale)
     failed_flag = (length(neuron_1) < min_neuron_size || length(neuron_2) < min_neuron_size)
     if failed_flag
@@ -345,3 +449,4 @@ function instance_segment_concave(img_roi; threshold_scale::Real=0.3, init_scale
     end
     return (img_roi, errors)
 end
+

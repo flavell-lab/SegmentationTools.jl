@@ -19,12 +19,14 @@ Can also plot raw data and semantic segmentation data for comparison.
 
 - `color_brightness`: minimum RGB value (out of 1) that an object will be plotted with
 - `plot_size`: size of the plot
+- `axis`: axis to project, default 3
+- `raw_contrast`: contrast of raw image, default 1
 """
-function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600))
+function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600), axis=3, raw_contrast=1)
     plot_imgs = []
     if raw != nothing
         max_img = maximum(raw)
-        push!(plot_imgs, map(x->RGB.(x/max_img, x/max_img, x/max_img), raw))
+        push!(plot_imgs, map(x->RGB.(x/max_img*raw_contrast, x/max_img*raw_contrast, x/max_img*raw_contrast), raw))
     end
     if predicted != nothing
         push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
@@ -33,8 +35,9 @@ function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
     colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
     colors[1] = RGB.(0,0,0)
     push!(plot_imgs, map(x->colors[x+1], img_roi))
-    @manipulate for z=1:size(plot_imgs[1])[3]
-        make_plot_grid([i[:,:,z] for i in plot_imgs], length(plot_imgs), plot_size)
+    @manipulate for z=1:size(plot_imgs[1])[axis]
+        i = [(dim == axis) ? z : Colon() for dim=1:3]
+        make_plot_grid([img[i[1],i[2],i[3]] for img in plot_imgs], length(plot_imgs), plot_size)
     end
 end
 

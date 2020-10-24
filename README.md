@@ -9,6 +9,15 @@ This package requires you to have previously installed the `FlavellBase.jl`, `Im
 
 Additionally, the example code provided here requires the `ImageDataIO` package is loaded in the current Julia environment.
 
+## Cropping the worm
+
+Before performing any other operations on an image, it is useful to crop out non-worm regions; this will speed up the subsequent operations, and can also improve UNet output:
+
+```julia
+crop_x, crop_y, crop_z, theta, worm_centroid = get_cropping_parameters(img)
+cropped_img = crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid)
+```
+
 ## Making weighted HDF5 files
 
 The `make_hdf5` method can generate appropriately-weighted HDF5 files from raw MHD data and labeled NRRD files:
@@ -39,6 +48,14 @@ After the UNet has been verified to be giving reasonable output, the next step i
 
 ```julia
 results, error_frames = instance_segmentation_output("/path/to/data", 1:100, "img_prefix", "MHD", 2, "predictions", "centroids", "activity", "ROIs")
+```
+
+Sometimes, the UNet will fail to properly segment two neurons into two separate objects. When this happens, an additional thresholding and watershedding step can be applied:
+
+```julia
+# img_roi is an instance-segmented image that needs to be watershed
+# predictions is the RAW UNet output (not thresholded)
+watershed_img_roi = instance_segmentation_threshold(img_roi, predictions)
 ```
 
 ## Visualizing instance segmentation
