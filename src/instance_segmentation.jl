@@ -139,16 +139,22 @@ function get_centroids(img_roi)
 end
 
 """
-Returns the average activity of all ROIs in `img_roi` in the given image `img`.
+Returns the average activity of all ROIs in an image.
+
+# Arguments
+- `img_roi`: ROI-labeled image
+- `img`: raw image
+- `activity_func` (optional, default `mean`): function to apply to pixel intensities of the ROI tocompute the activity for the entire ROI.
 """
-function get_activity(img_roi, img)
+function get_activity(img_roi, img; activity_func=mean)
     activity = []
     for i=1:maximum(img_roi)
         total = sum(img_roi .== i)
         if total == 0
             push!(activity, 0)
+            continue
         end
-        push!(activity, map(x->round(x), sum(img[img_roi .== i]) / total))
+        push!(activity, map(x->round(x), activity_func(img[img_roi .== i])))
     end
     return activity
 end
