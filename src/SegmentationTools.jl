@@ -40,7 +40,7 @@ export
     detect_incorrect_merges,
     watershed_threshold,
     instance_segmentation_threshold,
-    get_cropping_parameters,
+    get_crop_rotate_param,
     crop_rotate,
     call_unet
 end # module
