@@ -160,7 +160,7 @@ function crop_rotate(path_mhd::String, path_mhd_crop::String, path_MIP_crop::Str
             for ch = [ch_marker, ch_activity]
                 bname = f_basename(t, ch)
                 img = read_img(MHD(joinpath(path_mhd, bname * ".mhd")))
-                img_crop = SegmentationTools.crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
+                img_crop = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
 
                 path_base = joinpath(path_mhd_crop, bname)
                 path_raw = path_base *".raw"
