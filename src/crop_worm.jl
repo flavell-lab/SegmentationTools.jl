@@ -96,12 +96,12 @@ The cropping parameters are designed to remove the maximum fraction of non-worm 
 - `img`: Image to crop
 
 # Optional keyword arguments
-- `threshold`: Number of standard deviations above mean for a pixel to be considered part of the worm
-- `size_threshold`: Number of adjacent pixels that must meet the threshold to be counted.
+- `threshold_intensity`: Number of standard deviations above mean for a pixel to be considered part of the worm
+- `threshold_size`: Number of adjacent pixels that must meet the threshold to be counted.
 """
-function get_cropping_parameters(img; threshold::Real=3, size_threshold=10)
+function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size::Int=10)
     # threshold image to detect worm
-    thresh_img = ski_morphology.remove_small_objects(img .> mean(img) + threshold*std(img), size_threshold)
+    thresh_img = ski_morphology.remove_small_objects(img .> mean(img) + threshold_intensity * std(img), threshold_size)
     # extract worm points
     frame_worm_nonzero = map(x->collect(Tuple(x)), filter(x->thresh_img[x]!=0, CartesianIndices(thresh_img)))
     # get center of worm
