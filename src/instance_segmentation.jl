@@ -96,6 +96,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
     dict_error = Dict{Int, Exception}()
     
     @showprogress for t = t_range
+        try
             path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
             path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
             img_roi = read_img(MHD(path_roi_mhd))
@@ -130,7 +131,11 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
                 write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
                     size(img_roi)[2], size(img_roi)[3], "$(t).raw")
             end
+        catch e_
+            dict_error[t] = e_
+        end
     end
+    
     dict_result, dict_error
 endend
 
