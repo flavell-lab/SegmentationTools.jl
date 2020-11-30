@@ -29,5 +29,5 @@ function call_unet(param_path::Dict)
         write(f, str_cmd)
     end
     chmod(path_sh, 0o774)
-    run(`env -i $script_path`)
+    run(`env -i $path_sh`)
 end
