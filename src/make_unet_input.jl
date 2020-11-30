@@ -360,7 +360,7 @@ function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_
     create_dir(path_unet_data)
     
     @showprogress for t = t_range
-        path_mhd = path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
+        path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
         make_unet_input_h5(joinpath(path_mhd, nothing, joinpath(path_dir_unet_data, "$(t).h5"),
             crop=crop, transpose=transpose, weight_strategy=weight_strategy,
             metric=metric, scale_xy=scale_xy, scale_z=scale_z,
