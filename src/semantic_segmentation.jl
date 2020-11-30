@@ -22,8 +22,8 @@ function call_unet(param_path::Dict)
         write(f, unet_param_str)
     end
     
-    str_cmd = "#!/bin/bash\n" +
-        "source $(path_unet_py_env)\n" +
+    str_cmd = "#!/bin/bash\n" *
+        "source $(path_unet_py_env)\n" *
         "python $(path_unet_pred) --config $(path_unet_param_new) > $(path_log)"
     open(path_sh, "w") do f
         write(f, str_cmd)
