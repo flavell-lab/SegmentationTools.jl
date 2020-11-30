@@ -356,12 +356,12 @@ function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_
     weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1], SN_reduction_factor::Real=1,
     SN_percent::Real=16, scale_bkg_gap::Bool=false)
     
-    path_unet_data = param_path["path_unet_data"]
+    path_dir_unet_data = param_path["path_dir_unet_data"]
     create_dir(path_unet_data)
     
     @showprogress for t = t_range
         path_mhd = path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
-        make_unet_input_h5(joinpath(path_mhd, nothing, joinpath(path_unet_data, "$(t).h5"),
+        make_unet_input_h5(joinpath(path_mhd, nothing, joinpath(path_dir_unet_data, "$(t).h5"),
             crop=crop, transpose=transpose, weight_strategy=weight_strategy,
             metric=metric, scale_xy=scale_xy, scale_z=scale_z,
             weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap,
