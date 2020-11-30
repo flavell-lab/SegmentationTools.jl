@@ -137,7 +137,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
     end
     
     dict_result, dict_error
-endend
+end
 
 """
 Computes volume from a radius and a sampling ratio
