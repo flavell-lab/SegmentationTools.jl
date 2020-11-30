@@ -136,16 +136,16 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
 
-function crop_rotate(path_mhd::String, path_mhd_crop::String, path_MIP_crop::String, t_range, ch_marker::Int, ch_activity::Int,
+function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_marker::Int, ch_activity::Int,
         threshold_size::Int, threshold_intensity::AbstractFloat, f_basename::Function, save_MIP::Bool)
-    create_dir.([path_mhd_crop, path_MIP_crop])
+    create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Exception}()
     dict_crop_rot_param = Dict{Int, Array{Any, 1}}()
     
     @showprogress for t = t_range
         try
-            img = read_img(MHD(joinpath(path_mhd, f_basename(t, ch_marker) * ".mhd")))
+            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")))
             
             crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
                 threshold_intensity=threshold_intensity, threshold_size=threshold_size)
@@ -159,16 +159,16 @@ function crop_rotate(path_mhd::String, path_mhd_crop::String, path_MIP_crop::Str
 
             for ch = [ch_marker, ch_activity]
                 bname = f_basename(t, ch)
-                img = read_img(MHD(joinpath(path_mhd, bname * ".mhd")))
+                img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
                 img_crop = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
 
-                path_base = joinpath(path_mhd_crop, bname)
+                path_base = joinpath(path_dir_mhd_crop, bname)
                 path_raw = path_base *".raw"
-                path_mhd_ = path_base *".mhd"
-                path_png = joinpath(path_MIP_crop, bname *".png")
+                path_mhd = path_base *".mhd"
+                path_png = joinpath(path_dir_MIP_crop, bname *".png")
 
                 write_raw(path_raw, img_crop)
-                write_MHD_spec(path_mhd_, spacing_lat, spacing_axi,
+                write_MHD_spec(path_mhd, spacing_lat, spacing_axi,
                     size(img_crop)..., path_raw)
                 imsave(path_png, maxprj(img_crop, dims=3), cmap="gray")
             end
@@ -182,12 +182,12 @@ function crop_rotate(path_mhd::String, path_mhd_crop::String, path_MIP_crop::Str
 end
 
 function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true)
-    path_mhd = param_path["path_mhd"]
-    path_mhd_crop = param_path["path_mhd_crop"]
-    path_MIP_crop = param_path["path_MIP_crop"]
+    path_dir_mhd = param_path["path_mhd"]
+    path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
+    path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
     threshold_size = param["crop_threshold_size"]
     threshold_intensity = param["crop_threshold_intensity"]
     
-    crop_rotate(path_mhd, path_mhd_crop, path_MIP_crop, t_range, ch_marker, ch_activity,
+    crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_marker, ch_activity,
         threshold_size, threshold_intensity, f_basename, save_MIP)
 end
