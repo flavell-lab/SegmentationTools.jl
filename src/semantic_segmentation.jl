@@ -20,15 +20,15 @@ function call_unet(param_path::Dict)
     replace!(unet_param_str, "PATH_DIR_HDF_INPUT" => path_unet_data)
 
     open(path_unet_param_new, "w") do f
-        write(param_file, unet_param_str)
+        write(f, unet_param_str)
     end
     
     str_cmd = "#!/bin/bash\n" +
         "source $(path_unet_py_env)\n" +
         "python $(path_unet_pred) --config $(path_unet_param_new) > $(path_log)"
-    open(path_sh, "w") f
-        write(str_cmd)
+    open(path_sh, "w") do f
+        write(f, str_cmd)
     end
-    chmod(script_path, 0o774)
+    chmod(path_sh, 0o774)
     run(`env -i $script_path`)
 end
