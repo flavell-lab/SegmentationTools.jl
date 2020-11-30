@@ -140,8 +140,8 @@ function crop_rotate(path_mhd::String, path_mhd_crop::String, path_MIP_crop::Str
         threshold_size::Int, threshold_intensity::AbstractFloat, f_basename::Function, save_MIP::Bool)
     create_dir.([path_mhd_crop, path_MIP_crop])
 
-    dict_error = Dict{Int,Array{Exception,1}}()
-    dict_crop_rot_param = Dict{Int,Array{Any, 1}}()
+    dict_error = Dict{Int, Exception}()
+    dict_crop_rot_param = Dict{Int, Array{Any, 1}}()
     
     @showprogress for t = t_range
         try
