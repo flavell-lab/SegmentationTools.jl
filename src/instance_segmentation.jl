@@ -76,24 +76,63 @@ function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mh
 end
 
 # TODO: document
-function instance_segmentation_watershed(param::Dict, param_path::Dict, t_range)
+function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
+        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
+
+    path_dir_unet_data = param_path["path_dir_unet_data"]    
     path_dir_roi = param_path["path_dir_roi"]
-    path_dir_unet_data = param_path["path_dir_unet_data"]
     path_dir_roi_watershed = param_path["path_dir_roi_watershed"]
-    create_dir(path_dir_roi_watershed)
+    path_dir_activity = param_path["path_dir_activity"]
+    path_dir_centroid = param_path["path_dir_centroid"]
+    
+    save_centroid && create_dir(path_dir_centroid)
+    save_activity && create_dir(path_dir_activity)
+    save_roi && create_dir(path_dir_roi_watershed)
 
     watershed_thresholds = param["seg_threshold_watershed"]
     watershed_min_neuron_sizes = param["seg_watershed_min_neuron_sizes"]
     
+    dict_result = Dict{Int, Any}()
+    dict_error = Dict{Int, Exception}()
+    
     @showprogress for t = t_range
-        path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
-        path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
-        img_roi = read_img(MHD(path_roi_mhd))
-        img_pred = load_predictions(path_pred)
-        img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
-            thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
+            path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
+            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
+            img_roi = read_img(MHD(path_roi_mhd))
+            img_pred = load_predictions(path_pred)
+            img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
+                thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
+        
+            dict_result[t] = img_roi_watershed
+
+            if save_activity || save_roi
+                path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
+                mhd = MHD(path_mhd)
+            end
+            
+            if save_centroid
+                centroids = get_centroids(img_roi_watershed)
+                path_centroid = joinpath(path_dir_centroid, "$(t).txt")
+                write_centroids(centroids, path_centroid)
+            end
+            
+            if save_activity
+                img = read_img(MHD(path_mhd))
+                activity = get_activity(img_roi_watershed, img)
+                path_activity = joinpath(path_dir_activity, "$(t).txt")
+                write_activity(activity, path_activity)
+            end
+
+            if save_roi
+                path_roi = joinpath(path_dir_roi_watershed, "$(t)")
+                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
+                write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
+                write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
+                    size(img_roi)[2], size(img_roi)[3], "$(t).raw")
+            end
     end
-end
+    dict_result, dict_error
+endend
 
 """
 Computes volume from a radius and a sampling ratio
