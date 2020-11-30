@@ -18,23 +18,22 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
 function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
-        f_basename::Function; write_centroid::Bool=false, write_activity::Bool=false, write_roi::Bool=false)
+        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
     
     threshold_unet = param["seg_threshold_unet"]
     min_neuron_size = param["seg_min_neuron_size"]
     
     path_dir_unet_data = param_path["path_dir_unet_data"]    
     path_dir_roi = param_path["path_dir_roi"]
-    path_dir_roi_watershed = param_path["path_dir_roi_watershed"]
     path_dir_activity = param_path["path_dir_activity"]
     path_dir_centroid = param_path["path_dir_centroid"]
     
     dict_result = Dict{Int, Any}()
     dict_error = Dict{Int, Exception}()
     
-    write_centroid && create_dir(path_dir_centroid)
-    write_activity && create_dir(path_dir_activity)
-    write_roi && create_dir(path_dir_roi)
+    save_centroid && create_dir(path_dir_centroid)
+    save_activity && create_dir(path_dir_activity)
+    save_roi && create_dir(path_dir_roi)
     
     @showprogress for t = t_range
         try
@@ -43,25 +42,25 @@ function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mh
             img_roi = instance_segmentation(img_pred, min_neuron_size=min_neuron_size)
             dict_result[t] = img_roi
 
-            if write_activity || write_roi
+            if save_activity || save_roi
                 path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
                 mhd = MHD(path_mhd)
             end
             
-            if write_centroid
+            if save_centroid
                 centroids = get_centroids(img_roi)
                 path_centroid = joinpath(path_dir_centroid, "$(t).txt")
                 write_centroids(centroids, path_centroid)
             end
             
-            if write_activity
+            if save_activity
                 img = read_img(MHD(path_mhd))
                 activity = get_activity(img_roi, img)
                 path_activity = joinpath(path_dir_activity, "$(t).txt")
                 write_activity(activity, path_activity)
             end
 
-            if write_roi
+            if save_roi
                 path_roi = joinpath(path_dir_roi, "$(t)")
                 spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
                 write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
