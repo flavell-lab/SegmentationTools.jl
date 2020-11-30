@@ -350,7 +350,7 @@ function make_unet_input_h5(path_mhd::String, path_nrrd::Union{Nothing, String},
     nothing
 end
 
-function make_unet_input_h5(param_path::String, path_mhd::String, t_range, ch_marker::Int,
+function make_unet_input_h5(param_path::Dict, path_mhd::String, t_range, ch_marker::Int,
     f_basename::Function; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
     metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6,
     weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1], SN_reduction_factor::Real=1,
