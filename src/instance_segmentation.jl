@@ -76,6 +76,26 @@ function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mh
     return dict_result, dict_error
 end
 
+# TODO: document
+function instance_segmentation_watershed(param::Dict, param_path::Dict, t_range)
+    path_dir_roi = param_path["path_dir_roi"]
+    path_dir_unet_data = param_path["path_dir_unet_data"]
+    path_dir_roi_watershed = param_path["path_dir_roi_watershed"]
+    create_dir(path_dir_roi_watershed)
+
+    watershed_thresholds = param["seg_threshold_watershed"]
+    watershed_min_neuron_sizes = param["seg_watershed_min_neuron_sizes"]
+    
+    @showprogress for t = t_range
+        path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
+        path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
+        img_roi = read_img(MHD(path_roi_mhd))
+        img_pred = load_predictions(path_pred)
+        img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
+            thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
+    end
+end
+
 """
 Computes volume from a radius and a sampling ratio
 """
