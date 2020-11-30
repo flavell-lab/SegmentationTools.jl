@@ -20,7 +20,7 @@ export
     get_centroids,
     get_activity,
     create_weights,
-    make_hdf5,
+    make_unet_input_h5,
     view_label_overlay,
     visualize_prediction_accuracy_2D,
     visualize_prediction_accuracy_3D,
