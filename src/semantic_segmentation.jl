@@ -16,8 +16,7 @@ function call_unet(param_path::Dict)
     path_unet_py_env = param_path["path_unet_py_env"]
     path_unet_param_new = joinpath(path_root_process, basename(param_path["path_unet_param"]))
     
-    unet_param_str = read_txt(path_unet_param)
-    replace!(unet_param_str, "PATH_DIR_HDF_INPUT" => path_unet_data)
+    unet_param_str = replace(read_txt(path_unet_param), "PATH_DIR_HDF_INPUT" => path_unet_data)
 
     open(path_unet_param_new, "w") do f
         write(f, unet_param_str)
