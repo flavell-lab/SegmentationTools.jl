@@ -17,54 +17,126 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
-function instance_segmentation_output(rootpath::String, frames, img_prefix::String, 
-            mhd_path::String, channel::Integer, prediction_path::String, roi_output_path::String;
-            centroids_output_path::String="", activity_output_path::String="",
-            min_neuron_size::Integer=10, threshold=0.75)
-    n = length(frames)
-    results = Dict()
-    error_frames = Dict()
-    @showprogress for i in 1:n
-        frame = frames[i]
+function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
+        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
+    
+    threshold_unet = param["seg_threshold_unet"]
+    min_neuron_size = param["seg_min_neuron_size"]
+    
+    path_dir_unet_data = param_path["path_dir_unet_data"]    
+    path_dir_roi = param_path["path_dir_roi"]
+    path_dir_activity = param_path["path_dir_activity"]
+    path_dir_centroid = param_path["path_dir_centroid"]
+    
+    dict_result = Dict{Int, Any}()
+    dict_error = Dict{Int, Exception}()
+    
+    save_centroid && create_dir(path_dir_centroid)
+    save_activity && create_dir(path_dir_activity)
+    save_roi && create_dir(path_dir_roi)
+    
+    @showprogress for t = t_range
         try
-            predictions = load_predictions(joinpath(rootpath, prediction_path, "$(frame)_predictions.h5")) .> threshold
-            img_roi = instance_segmentation(predictions, min_neuron_size=min_neuron_size)
-            
-            results[frame] = img_roi
-            mhd_str = joinpath(rootpath, mhd_path, img_prefix*"_t"*string(frame, pad=4)*"_ch$(channel).mhd")
-            
-            if centroids_output_path != ""
-                centroids = get_centroids(img_roi)
-                centroid_path = joinpath(rootpath, centroids_output_path, "$(frame).txt")
-                create_dir(joinpath(rootpath, centroids_output_path))
-                write_centroids(centroids, centroid_path)
+            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
+            img_pred = load_predictions(path_pred) .> threshold_unet
+            img_roi = instance_segmentation(img_pred, min_neuron_size=min_neuron_size)
+            dict_result[t] = img_roi
+
+            if save_activity || save_roi
+                path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
+                mhd = MHD(path_mhd)
             end
             
-            if activity_output_path != ""
-                img = read_img(MHD(mhd_str))
+            if save_centroid
+                centroids = get_centroids(img_roi)
+                path_centroid = joinpath(path_dir_centroid, "$(t).txt")
+                write_centroids(centroids, path_centroid)
+            end
+            
+            if save_activity
+                img = read_img(MHD(path_mhd))
                 activity = get_activity(img_roi, img)
-                activity_path = joinpath(rootpath, activity_output_path, "$(frame).txt")
-                create_dir(joinpath(rootpath, activity_output_path))
-                write_activity(activity, activity_path)
+                path_activity = joinpath(path_dir_activity, "$(t).txt")
+                write_activity(activity, path_activity)
             end
 
-            if roi_output_path != ""
-                roi_path = joinpath(rootpath, roi_output_path, "$(frame)")
-                create_dir(joinpath(rootpath, roi_output_path))
-                mhd = MHD(mhd_str)
+            if save_roi
+                path_roi = joinpath(path_dir_roi, "$(t)")
                 spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
-                write_raw("$(roi_path).raw", map(x->UInt16(x), img_roi))
-                write_MHD_spec("$(roi_path).mhd", spacing[1], spacing[end], size(img_roi)[1],
-                    size(img_roi)[2], size(img_roi)[3], "$(frame).raw")
+                write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
+                write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
+                    size(img_roi)[2], size(img_roi)[3], "$(t).raw")
             end
-        catch e
-            error_frames[i] = string(e)
+        catch e_
+            dict_error[t] = e_
         end
     end
-    if length(keys(error_frames)) > 0
-        println("WARNING: Errors in some frames.")
+
+    return dict_result, dict_error
+end
+
+# TODO: document
+function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
+        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
+
+    path_dir_unet_data = param_path["path_dir_unet_data"]    
+    path_dir_roi = param_path["path_dir_roi"]
+    path_dir_roi_watershed = param_path["path_dir_roi_watershed"]
+    path_dir_activity = param_path["path_dir_activity"]
+    path_dir_centroid = param_path["path_dir_centroid"]
+    
+    save_centroid && create_dir(path_dir_centroid)
+    save_activity && create_dir(path_dir_activity)
+    save_roi && create_dir(path_dir_roi_watershed)
+
+    watershed_thresholds = param["seg_threshold_watershed"]
+    watershed_min_neuron_sizes = param["seg_watershed_min_neuron_sizes"]
+    
+    dict_result = Dict{Int, Any}()
+    dict_error = Dict{Int, Exception}()
+    
+    @showprogress for t = t_range
+        try
+            path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
+            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
+            img_roi = read_img(MHD(path_roi_mhd))
+            img_pred = load_predictions(path_pred)
+            img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
+                thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
+        
+            dict_result[t] = img_roi_watershed
+
+            if save_activity || save_roi
+                path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
+                mhd = MHD(path_mhd)
+            end
+            
+            if save_centroid
+                centroids = get_centroids(img_roi_watershed)
+                path_centroid = joinpath(path_dir_centroid, "$(t).txt")
+                write_centroids(centroids, path_centroid)
+            end
+            
+            if save_activity
+                img = read_img(MHD(path_mhd))
+                activity = get_activity(img_roi_watershed, img)
+                path_activity = joinpath(path_dir_activity, "$(t).txt")
+                write_activity(activity, path_activity)
+            end
+
+            if save_roi
+                path_roi = joinpath(path_dir_roi_watershed, "$(t)")
+                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
+                write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
+                write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
+                    size(img_roi)[2], size(img_roi)[3], "$(t).raw")
+            end
+        catch e_
+            dict_error[t] = e_
+        end
     end
-    return (results, error_frames)
+    
+    dict_result, dict_error
 end
 
 """
@@ -139,16 +211,22 @@ function get_centroids(img_roi)
 end
 
 """
-Returns the average activity of all ROIs in `img_roi` in the given image `img`.
+Returns the average activity of all ROIs in an image.
+
+# Arguments
+- `img_roi`: ROI-labeled image
+- `img`: raw image
+- `activity_func` (optional, default `mean`): function to apply to pixel intensities of the ROI tocompute the activity for the entire ROI.
 """
-function get_activity(img_roi, img)
+function get_activity(img_roi, img; activity_func=mean)
     activity = []
     for i=1:maximum(img_roi)
         total = sum(img_roi .== i)
         if total == 0
             push!(activity, 0)
+            continue
         end
-        push!(activity, map(x->round(x), sum(img[img_roi .== i]) / total))
+        push!(activity, map(x->round(x), activity_func(img[img_roi .== i])))
     end
     return activity
 end

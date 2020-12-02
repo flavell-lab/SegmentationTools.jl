@@ -268,60 +268,104 @@ Generates an HDF5 file, to be input to the UNet, out of a raw image file and a l
 - `SN_percent`: percentile to estimate std of image from. Default 16.
 - `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border. Default false.
 """
-function make_hdf5(rootpath::String, hdf5_path::String, nrrd_path::String, mhd_path::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
+function make_unet_input_h5(img_raw::Array, img_label::Union{Nothing,Array}, path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
     metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
     bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
-    make_label = (nrrd_path != "")
-    if make_label
-        label = collect(load(joinpath(rootpath, nrrd_path)))
-    end
-    raw = read_img(MHD(joinpath(rootpath, mhd_path)))
-    if crop != nothing
+    make_label = !isnothing(img_label)
+
+    if !isnothing(crop)
         if make_label
-            label = label[crop[1], crop[2], crop[3]]
+            img_label = img_label[crop[1], crop[2], crop[3]]
         end
-        raw = raw[crop[1], crop[2], crop[3]]
+        img_raw = img_raw[crop[1], crop[2], crop[3]]
     end
+    
     if transpose
         if make_label
-            label = permutedims(label, [2,1,3])
+            img_label = permutedims(img_label, [2,1,3])
         end
-        raw = permutedims(raw, [2,1,3])
+        img_raw = permutedims(img_raw, [2,1,3])
     end
-    std = median(raw) - percentile(collect(Iterators.flatten(raw)), SN_percent)
+    
+    std = median(img_raw) - percentile(collect(Iterators.flatten(img_raw)), SN_percent)
     if bin_scale != [1,1,1]
         if make_label
-            label = resample_img(label, bin_scale; dtype="label")
+            label = resample_img(img_label, bin_scale; dtype="label")
         end
-        raw = resample_img(raw, bin_scale)
+        img_raw = resample_img(img_raw, bin_scale)
     end
+    
     if SN_reduction_factor != 1
-        raw = decrease_SN(raw; factor=SN_reduction_factor, std=std)
+        img_raw = decrease_SN(img_raw; factor=SN_reduction_factor, std=std)
     end
+
     if make_label
         # Don't weight unlabeled, weight all neurons and bkg equally (corrected for number of pixels)
         if weight_strategy == "proportional"
-            weight_arr = [0, round(sum(label .== 2)/sum(label .== 1)), 1]
+            weight_arr = [0, round(sum(img_label .== 2) / sum(img_label .== 1)), 1]
             weight_fn = x->weight_arr[Int16(x)+1]
-            weight = map(weight_fn, label)
+            weight = map(weight_fn, img_label)
         # Don't weight unlabeled, weight background pixels nearby neuron pixels higher.
         elseif weight_strategy == "neighbors"
-            weight = create_weights(label, scale_xy=scale_xy, scale_z=scale_z, weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap, metric=metric, boundary_weight=boundary_weight, scale_bkg_gap=scale_bkg_gap)
+            weight = create_weights(img_label, scale_xy=scale_xy, scale_z=scale_z,
+                        weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap,
+                        metric=metric, boundary_weight=boundary_weight, scale_bkg_gap=scale_bkg_gap)
         else
             throw("Weight strategy "*weight_strategy*" not implemented.")
         end
     end
+    
     # Neurons are labeled as 1, assume everything else is background, but weight only real background
     if make_label
-        label_new = map(x->Int16(x), label .== 1)
+        img_label_new = map(x->Int16(x), img_label .== 1)
     end
+    
     # weighting
     # weight neuron pixels more heavily since there are fewer of them
-    f = h5open(joinpath(rootpath, hdf5_path), "w")
-    f["raw"] = collect(raw)
-    if make_label
-        f["label"] = collect(label_new)
-        f["weight"] = collect(weight)
+    h5open(path_h5, "w") do h5f
+        h5f["raw"] = collect(img_raw)
+        if make_label
+            h5f["label"] = collect(img_label_new)
+            h5f["weight"] = collect(weight)
+        end
     end
-    close(f)
+    
+    nothing
+end
+
+function make_unet_input_h5(path_mhd::String, path_nrrd::Union{Nothing, String}, path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
+    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
+    bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
+    make_label = !isnothing(path_nrrd)
+    
+    img_label = make_label ? collect(load(path_nrrd)) : nothing
+    img_raw = read_img(MHD(path_mhd))
+    
+    make_unet_input_h5(img_raw, img_label, path_h5, crop=crop, transpose=transpose,
+        weight_strategy=weight_strategy, metric=metric, scale_xy=scale_xy, scale_z=scale_z,
+        weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap,
+        boundary_weight=boundary_weight, bin_scale=bin_scale, SN_reduction_factor=SN_reduction_factor,
+        SN_percent=SN_percent, scale_bkg_gap=scale_bkg_gap)
+    
+    nothing
+end
+
+function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_marker::Int,
+    f_basename::Function; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
+    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6,
+    weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1], SN_reduction_factor::Real=1,
+    SN_percent::Real=16, scale_bkg_gap::Bool=false)
+    
+    path_dir_unet_data = param_path["path_dir_unet_data"]
+    create_dir(path_unet_data)
+    
+    @showprogress for t = t_range
+        path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
+        make_unet_input_h5(path_mhd, nothing, joinpath(path_dir_unet_data, "$(t).h5"),
+            crop=crop, transpose=transpose, weight_strategy=weight_strategy,
+            metric=metric, scale_xy=scale_xy, scale_z=scale_z,
+            weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap,
+            boundary_weight=boundary_weight, bin_scale=bin_scale, SN_reduction_factor=SN_reduction_factor,
+            SN_percent=SN_percent, scale_bkg_gap=scale_bkg_gap)
+    end
 end

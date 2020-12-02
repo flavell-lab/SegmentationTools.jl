@@ -21,7 +21,8 @@ Otherwise, it can be set to a numerical value.
 
 Outputs a new image that is the cropped and rotated version of `img`.
 """
-function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="median", degree=Linear(), dtype=Int16, crop_pad=[3,3,3], min_crop_size=[210,96,51])
+function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="median",
+        degree=Linear(), dtype=Int16, crop_pad=[3,3,3], min_crop_size=[210,96,51])
     new_img = nothing
     if fill == "median"
         fill_val = dtype(round(median(img)))
@@ -96,12 +97,12 @@ The cropping parameters are designed to remove the maximum fraction of non-worm 
 - `img`: Image to crop
 
 # Optional keyword arguments
-- `threshold`: Number of standard deviations above mean for a pixel to be considered part of the worm
-- `size_threshold`: Number of adjacent pixels that must meet the threshold to be counted.
+- `threshold_intensity`: Number of standard deviations above mean for a pixel to be considered part of the worm
+- `threshold_size`: Number of adjacent pixels that must meet the threshold to be counted.
 """
-function get_cropping_parameters(img; threshold::Real=3, size_threshold=10)
+function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size::Int=10)
     # threshold image to detect worm
-    thresh_img = ski_morphology.remove_small_objects(img .> mean(img) + threshold*std(img), size_threshold)
+    thresh_img = ski_morphology.remove_small_objects(img .> mean(img) + threshold_intensity * std(img), threshold_size)
     # extract worm points
     frame_worm_nonzero = map(x->collect(Tuple(x)), filter(x->thresh_img[x]!=0, CartesianIndices(thresh_img)))
     # get center of worm
@@ -133,4 +134,61 @@ function get_cropping_parameters(img; threshold::Real=3, size_threshold=10)
     crop_z = (Int64(floor(minimum(distances_z) + worm_centroid[3])), Int64(ceil(maximum(distances_z) + worm_centroid[3])))
 
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
+end
+
+function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_marker::Int, ch_activity::Int,
+        threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
+    create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
+
+    dict_error = Dict{Int, Exception}()
+    dict_crop_rot_param = Dict{Int, Array{Any, 1}}()
+    
+    @showprogress for t = t_range
+        try
+            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")))
+            
+            crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
+                threshold_intensity=threshold_intensity, threshold_size=threshold_size)
+            dict_crop_rot_param[t] = [crop_x, crop_y, crop_z, θ_, worm_centroid]
+            
+            if crop_z[1] < 1 || crop_z[2] >= size(img)[3]
+                throw(WormOutOfFocus(t))
+            elseif crop_z[2] - crop_z[1] > 65 # thickness/n_z of the worm
+                throw(InsufficientCropping(t))
+            end
+
+            for ch = [ch_marker, ch_activity]
+                bname = f_basename(t, ch)
+                img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
+                img_crop = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
+
+                path_base = joinpath(path_dir_mhd_crop, bname)
+                path_raw = path_base *".raw"
+                path_mhd = path_base *".mhd"
+                path_png = joinpath(path_dir_MIP_crop, bname *".png")
+
+                write_raw(path_raw, img_crop)
+                write_MHD_spec(path_mhd, spacing_lat, spacing_axi,
+                    size(img_crop)..., basename(path_raw))
+                imsave(path_png, maxprj(img_crop, dims=3), cmap="gray")
+            end
+        catch e_
+            dict_error[t] = e_
+        end
+    end
+    
+    return dict_crop_rot_param, dict_error
+end
+
+function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true)
+    path_dir_mhd = param_path["path_dir_mhd"]
+    path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
+    path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
+    threshold_size = param["crop_threshold_size"]
+    threshold_intensity = param["crop_threshold_intensity"]
+    spacing_axi = param["spacing_axi"]
+    spacing_lat = param["spacing_lat"]
+
+    crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_marker, ch_activity,
+        threshold_size, threshold_intensity, spacing_axi, spacing_lat, f_basename, save_MIP)
 end

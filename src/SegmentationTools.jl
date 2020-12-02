@@ -20,7 +20,7 @@ export
     get_centroids,
     get_activity,
     create_weights,
-    make_hdf5,
+    make_unet_input_h5,
     view_label_overlay,
     visualize_prediction_accuracy_2D,
     visualize_prediction_accuracy_3D,
@@ -40,7 +40,8 @@ export
     detect_incorrect_merges,
     watershed_threshold,
     instance_segmentation_threshold,
-    get_cropping_parameters,
+    instance_segmentation_watershed,
+    get_crop_rotate_param,
     crop_rotate,
     call_unet
 end # module
