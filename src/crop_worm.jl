@@ -182,7 +182,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
 end
 
 function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true)
-    path_dir_mhd = param_path["path_mhd"]
+    path_dir_mhd = param_path["path_dir_mhd"]
     path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
     path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
     threshold_size = param["crop_threshold_size"]
