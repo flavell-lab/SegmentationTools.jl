@@ -137,7 +137,7 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
 end
 
 function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_marker::Int, ch_activity::Int,
-        threshold_size::Int, threshold_intensity::AbstractFloat, f_basename::Function, save_MIP::Bool)
+        threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Exception}()
@@ -190,5 +190,5 @@ function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_
     spacing_lat = param["spacing_lat"]
 
     crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_marker, ch_activity,
-        threshold_size, threshold_intensity, f_basename, save_MIP)
+        threshold_size, threshold_intensity, spacing_axi, spacing_lat, f_basename, save_MIP)
 end
