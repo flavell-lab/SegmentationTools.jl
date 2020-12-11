@@ -94,9 +94,6 @@ function increase_crop_size!(crop, min_ind, max_ind, crop_size)
     end
     nothing
 end
-    nothing
-end
-
 
 """
 Generates cropping and rotation parameters from a frame by detecting the worm's location with thresholding and noise removal.
