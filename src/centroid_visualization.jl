@@ -21,8 +21,13 @@ Can also plot raw data and semantic segmentation data for comparison.
 - `plot_size`: size of the plot
 - `axis`: axis to project, default 3
 - `raw_contrast`: contrast of raw image, default 1
+- `labeled_neurons`: neurons that should have a specific color, as an array of arrays.
+- `label_colors`: an array of colors, one for each array in `labeled_neurons`
+- `neuron_color`: the color of non-labeled neurons. If not supplied, all of them will be random different colors.
 """
-function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600), axis=3, raw_contrast=1)
+function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600), axis=3,
+        raw_contrast=1, labeled_neurons=[], label_colors=[], neuron_color=nothing)
+    @assert(length(labeled_neurons) == length(label_colors))
     plot_imgs = []
     if raw != nothing
         max_img = maximum(raw)
@@ -32,8 +37,17 @@ function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
         push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
     end
     num = maximum(img_roi)+1
-    colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
+    if neuron_color == nothing
+        colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
+    else
+        colors = [neuron_color for i=1:num]
+    end
     colors[1] = RGB.(0,0,0)
+    for i in 1:length(labeled_neurons)
+        for neuron in labeled_neurons[i]
+            colors[neuron+1] = label_colors[i]
+        end
+    end
     push!(plot_imgs, map(x->colors[x+1], img_roi))
     @manipulate for z=1:size(plot_imgs[1])[axis]
         i = [(dim == axis) ? z : Colon() for dim=1:3]
