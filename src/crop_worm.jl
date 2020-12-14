@@ -16,13 +16,13 @@ If kept at its default value "median", the median of the image will be used.
 Otherwise, it can be set to a numerical value.
 - `degree`: degree of the interpolation. Default `Linear()`; can set to `Constant()` for nearest-neighbors.
 - `dtype`: type of data in resulting image
-- `crop_pad`: amount to pad the cropping in each dimension. Default 3 pixels in each dimension.
+- `crop_pad`: amount to pad the cropping in each dimension. Default 5 pixels in each dimension.
 - `min_crop_size`: minimum size of cropped image. Default [210,96,51], the UNet input size.
 
 Outputs a new image that is the cropped and rotated version of `img`.
 """
 function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="median",
-        degree=Linear(), dtype=Int16, crop_pad=[3,3,3], min_crop_size=[210,96,51])
+        degree=Linear(), dtype=Int16, crop_pad=[5,5,5], min_crop_size=[210,96,51])
     new_img = nothing
     if fill == "median"
         fill_val = dtype(round(median(img)))
@@ -81,13 +81,19 @@ function increase_crop_size!(crop, min_ind, max_ind, crop_size)
     if crop_size > max_ind - min_ind + 1
         throw("Crop size cannot be larger than image size")
     end
+    d = 1
     while crop[2] - crop[1] < crop_size
-        d = argmax([crop[1] - min_ind, max_ind - crop[2]])
-        crop[d] += 2*d - 3
+        if crop[2] >= max_ind
+            crop[1] -= 1
+        elseif crop[1] <= min_ind
+            crop[2] += 1
+        else
+            d = 3 - d
+            crop[d] += 2*d - 3
+        end
     end
     nothing
 end
-
 
 """
 Generates cropping and rotation parameters from a frame by detecting the worm's location with thresholding and noise removal.
@@ -118,8 +124,11 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
     long_axis = mat_eigvecs[:,eigvals_order[1]]
     long_axis[3] = 0
     long_axis = long_axis ./ sqrt(sum(long_axis .^ 2))
-    short_axis = [long_axis[2], -long_axis[1], 0]
+    short_axis = [-long_axis[2], long_axis[1], 0]
     theta = atan(long_axis[2]/long_axis[1])
+    if long_axis[1] < 0
+        theta += pi
+    end
 
     
     # get coordinates of points in worm axis-dimension

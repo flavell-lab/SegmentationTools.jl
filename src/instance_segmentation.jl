@@ -142,7 +142,7 @@ end
 """
 Computes volume from a radius and a sampling ratio
 """
-volume(radius, sampling_ratio) = (4 / 3) * π * sum(radius .* sampling_ratio)
+volume(radius, sampling_ratio) = (4 / 3) * π * prod(radius .* sampling_ratio)
 
 
 """
