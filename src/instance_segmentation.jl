@@ -17,76 +17,18 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
-function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
-        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
-    
-    threshold_unet = param["seg_threshold_unet"]
-    min_neuron_size = param["seg_min_neuron_size"]
-    
-    path_dir_unet_data = param_path["path_dir_unet_data"]    
-    path_dir_roi = param_path["path_dir_roi"]
-    path_dir_activity = param_path["path_dir_activity"]
-    path_dir_centroid = param_path["path_dir_centroid"]
-    
-    dict_result = Dict{Int, Any}()
-    dict_error = Dict{Int, Exception}()
-    
-    save_centroid && create_dir(path_dir_centroid)
-    save_activity && create_dir(path_dir_activity)
-    save_roi && create_dir(path_dir_roi)
-    
-    @showprogress for t = t_range
-        try
-            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
-            img_pred = load_predictions(path_pred) .> threshold_unet
-            img_roi = instance_segmentation(img_pred, min_neuron_size=min_neuron_size)
-            dict_result[t] = img_roi
-
-            if save_activity || save_roi
-                path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
-                mhd = MHD(path_mhd)
-            end
-            
-            if save_centroid
-                centroids = get_centroids(img_roi)
-                path_centroid = joinpath(path_dir_centroid, "$(t).txt")
-                write_centroids(centroids, path_centroid)
-            end
-            
-            if save_activity
-                img = read_img(MHD(path_mhd))
-                activity = get_activity(img_roi, img)
-                path_activity = joinpath(path_dir_activity, "$(t).txt")
-                write_activity(activity, path_activity)
-            end
-
-            if save_roi
-                path_roi = joinpath(path_dir_roi, "$(t)")
-                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
-                write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
-                write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
-                    size(img_roi)[2], size(img_roi)[3], "$(t).raw")
-            end
-        catch e_
-            dict_error[t] = e_
-        end
-    end
-
-    return dict_result, dict_error
-end
-
 # TODO: document
-function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
-        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
+function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range,
+        f_basename::Function; save_centroid::Bool=false, save_signal::Bool=false, save_roi::Bool=false)
 
     path_dir_unet_data = param_path["path_dir_unet_data"]    
     path_dir_roi = param_path["path_dir_roi"]
     path_dir_roi_watershed = param_path["path_dir_roi_watershed"]
-    path_dir_activity = param_path["path_dir_activity"]
+    path_dir_activity = param_path["path_dir_marker_signal"]
     path_dir_centroid = param_path["path_dir_centroid"]
     
     save_centroid && create_dir(path_dir_centroid)
-    save_activity && create_dir(path_dir_activity)
+    save_signal && create_dir(path_dir_activity)
     save_roi && create_dir(path_dir_roi_watershed)
 
     watershed_thresholds = param["seg_threshold_watershed"]
@@ -106,8 +48,8 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
         
             dict_result[t] = img_roi_watershed
 
-            if save_activity || save_roi
-                path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
+            if save_signal || save_roi
+                path_mhd = joinpath(path_dir_mhd, f_basename(t, param["ch_marker"]) * ".mhd")
                 mhd = MHD(path_mhd)
             end
             
@@ -117,7 +59,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
                 write_centroids(centroids, path_centroid)
             end
             
-            if save_activity
+            if save_signal
                 img = read_img(MHD(path_mhd))
                 activity = get_activity(img_roi_watershed, img)
                 path_activity = joinpath(path_dir_activity, "$(t).txt")
