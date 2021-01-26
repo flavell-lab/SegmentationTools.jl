@@ -17,6 +17,83 @@ Returns dictionary of results and a list of error frames (most likely because th
 - `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
 - `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
 """
+function instance_segmentation_output(param::Dict, param_path::Dict, path_dir_mhd::String, t_range, ch_activity::Int,
+        f_basename::Function; save_centroid::Bool=false, save_activity::Bool=false, save_roi::Bool=false)
+    
+    threshold_unet = param["seg_threshold_unet"]
+    min_neuron_size = param["seg_min_neuron_size"]
+    
+    path_dir_unet_data = param_path["path_dir_unet_data"]    
+    path_dir_roi = param_path["path_dir_roi"]
+    path_dir_activity = param_path["path_dir_activity"]
+    path_dir_centroid = param_path["path_dir_centroid"]
+    
+    dict_result = Dict{Int, Any}()
+    dict_error = Dict{Int, Exception}()
+    
+    save_centroid && create_dir(path_dir_centroid)
+    save_activity && create_dir(path_dir_activity)
+    save_roi && create_dir(path_dir_roi)
+    
+    @showprogress for t = t_range
+        try
+            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
+            img_pred = load_predictions(path_pred) .> threshold_unet
+            img_roi = instance_segmentation(img_pred, min_neuron_size=min_neuron_size)
+            dict_result[t] = img_roi
+
+            if save_activity || save_roi
+                path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_activity) * ".mhd")
+                mhd = MHD(path_mhd)
+            end
+            
+            if save_centroid
+                centroids = get_centroids(img_roi)
+                path_centroid = joinpath(path_dir_centroid, "$(t).txt")
+                write_centroids(centroids, path_centroid)
+            end
+            
+            if save_activity
+                img = read_img(MHD(path_mhd))
+                activity = get_activity(img_roi, img)
+                path_activity = joinpath(path_dir_activity, "$(t).txt")
+                write_activity(activity, path_activity)
+            end
+
+            if save_roi
+                path_roi = joinpath(path_dir_roi, "$(t)")
+                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
+                write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
+                write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
+                    size(img_roi)[2], size(img_roi)[3], "$(t).raw")
+            end
+        catch e_
+            dict_error[t] = e_
+        end
+    end
+
+    return dict_result, dict_error
+end
+
+"""
+Runs instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
+Skips a given output method if the corresponding output directory was empty
+Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
+
+# Arguments
+
+- `rootpath::String`, `frames`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
+    Reads MHD files from, eg, `rootpath/mhd_path/img_prefix_t0123_ch2.mhd` for frame=123 and channel=2, and outputs resulting image.
+- `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
+- `roi_output_path::String`: Path to output image ROIs (relative to `rootpath`)
+
+# Optional keyword arguments
+
+- `centroids_output_path::String`: Path to output centroids (relative to `rootpath`). Set to "" (default) to not output centroids.
+- `activity_output_path::String`: Path to output activity (relative to `rootpath`). Set to "" (default) to not output activity.
+- `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
+- `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
+"""
 # TODO: document
 function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range,
         f_basename::Function; save_centroid::Bool=false, save_signal::Bool=false, save_roi::Bool=false)
@@ -30,6 +107,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
     save_centroid && create_dir(path_dir_centroid)
     save_signal && create_dir(path_dir_activity)
     save_roi && create_dir(path_dir_roi_watershed)
+    save_roi && create_dir(path_dir_roi)
 
     watershed_thresholds = param["seg_threshold_watershed"]
     watershed_min_neuron_sizes = param["seg_watershed_min_neuron_sizes"]
@@ -41,7 +119,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
         try
             path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
             path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
-            img_roi = read_img(MHD(path_roi_mhd))
+            img_roi = instance_segmentation(img_pred, min_neuron_size=min_neuron_size)
             img_pred = load_predictions(path_pred)
             img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
                 thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
@@ -67,11 +145,16 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
             end
 
             if save_roi
-                path_roi = joinpath(path_dir_roi_watershed, "$(t)")
+                path_roi = joinpath(path_dir_roi, "$(t)")
                 spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
                 write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
                 write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
                     size(img_roi)[2], size(img_roi)[3], "$(t).raw")
+                path_roi_watershed = joinpath(path_dir_roi_watershed, "$(t)")
+                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
+                write_raw(path_roi_watershed * ".raw", map(x->UInt16(x), img_roi_watershed))
+                write_MHD_spec(path_roi_watershed * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
+                    size(img_roi_watershed)[2], size(img_roi_watershed)[3], "$(t).raw")
             end
         catch e_
             dict_error[t] = e_
