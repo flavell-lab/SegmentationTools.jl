@@ -103,6 +103,8 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
     path_dir_roi_watershed = param_path["path_dir_roi_watershed"]
     path_dir_activity = param_path["path_dir_marker_signal"]
     path_dir_centroid = param_path["path_dir_centroid"]
+    threshold_unet = param["seg_threshold_unet"]
+    min_neuron_size = param["seg_min_neuron_size"]
     
     save_centroid && create_dir(path_dir_centroid)
     save_signal && create_dir(path_dir_activity)
@@ -119,8 +121,9 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
         try
             path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
             path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
-            img_roi = instance_segmentation(img_pred, min_neuron_size=min_neuron_size)
             img_pred = load_predictions(path_pred)
+            img_pred_thresh = img_pred .> threshold_unet
+            img_roi = instance_segmentation(img_pred_thresh, min_neuron_size=min_neuron_size)
             img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
                 thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
         
@@ -145,11 +148,13 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
             end
 
             if save_roi
+                # save image before watershedding
                 path_roi = joinpath(path_dir_roi, "$(t)")
                 spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
                 write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
                 write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
                     size(img_roi)[2], size(img_roi)[3], "$(t).raw")
+                # save image after watershedding
                 path_roi_watershed = joinpath(path_dir_roi_watershed, "$(t)")
                 spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
                 write_raw(path_roi_watershed * ".raw", map(x->UInt16(x), img_roi_watershed))
