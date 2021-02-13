@@ -179,7 +179,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
                 write_raw(path_raw, img_crop)
                 write_MHD_spec(path_mhd, spacing_lat, spacing_axi,
                     size(img_crop)..., basename(path_raw))
-                imsave(path_png, maxprj(img_crop, dims=3), cmap="gray")
+                save(path_png, clamp01nan.(maxprj(img_crop, dims=3) ./ 1000))
             end
         catch e_
             dict_error[t] = e_
