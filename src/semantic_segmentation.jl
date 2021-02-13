@@ -9,7 +9,7 @@ function call_unet(param_path::Dict)
     path_sh = joinpath(path_root_process, "run_unet.sh")
     path_log = joinpath(path_root_process, "unet.log")
 
-    path_unet_data = param_path["path_unet_data"] # path to directory containing the data (.h5)
+    path_unet_data = param_path["path_dir_unet_data"] # path to directory containing the data (.h5)
     path_unet_pred = param_path["path_unet_pred"] #=path to UNet `predict.py` file, which must be from the
     `pytorch-3dunet` package and compatible with the given data and parameters.=#
     path_unet_param = param_path["path_unet_param"] # path to base parameter file

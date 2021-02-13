@@ -357,7 +357,7 @@ function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_
     SN_percent::Real=16, scale_bkg_gap::Bool=false)
     
     path_dir_unet_data = param_path["path_dir_unet_data"]
-    create_dir(path_unet_data)
+    create_dir(path_dir_unet_data)
     
     @showprogress for t = t_range
         path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
