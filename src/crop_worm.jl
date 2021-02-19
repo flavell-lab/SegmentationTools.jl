@@ -42,19 +42,19 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
     for z=cz[1]:cz[2]
         new_img_z = warp(img[:,:,z], tfm, degree)
         # initialize x and y cropping parameters
-        if cx == nothing
+        if isnothing(cx)
             cx = [crop_x[1]-crop_pad[1], crop_x[2]+crop_pad[1]]
             cx = [max(cx[1], new_img_z.offsets[1]+1), min(cx[2], new_img_z.offsets[1] + size(new_img_z)[1])]
             increase_crop_size!(cx, new_img_z.offsets[1] + 1, new_img_z.offsets[1] + size(new_img_z)[1], min_crop_size[1])
         end
         
-        if cy == nothing
+        if isnothing(cy)
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
             increase_crop_size!(cy, new_img_z.offsets[1] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
         end
 
-        if new_img == nothing
+        if isnothing(new_img)
             new_img = zeros(dtype, (cx[2] - cx[1] + 1, cy[2] - cy[1] + 1, cz[2] - cz[1] + 1))
         end
 
@@ -73,7 +73,7 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         end
     end
 
-    return new_img[1:cx[2]-cx[1]+1, 1:cy[2]-cy[1]+1, 1:cz[2]-cz[1]+1]
+    return (new_img[1:cx[2]-cx[1]+1, 1:cy[2]-cy[1]+1, 1:cz[2]-cz[1]+1], cx, cy, cz)
 end
 
 """ Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
@@ -150,7 +150,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Exception}()
-    dict_crop_rot_param = Dict{Int, Array{Any, 1}}()
+    dict_crop_rot_param = Dict{Int, Dict}()
     
     @showprogress for t = t_range
         try
@@ -158,7 +158,13 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             
             crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
                 threshold_intensity=threshold_intensity, threshold_size=threshold_size)
-            dict_crop_rot_param[t] = [crop_x, crop_y, crop_z, θ_, worm_centroid]
+            dict_crop_rot_param[t] = Dict()
+            dict_crop_rot_param[t]["crop_x"] = crop_x
+            dict_crop_rot_param[t]["crop_y"] = crop_y
+            dict_crop_rot_param[t]["crop_z"] = crop_z
+            dict_crop_rot_param[t]["θ"] = θ_
+            dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
+            dict_crop_rot_param[t]["updated_crop_params"] = Dict()
             
             if crop_z[1] < 1 || crop_z[2] >= size(img)[3]
                 throw(WormOutOfFocus(t))
@@ -169,7 +175,14 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             for ch = [ch_marker, ch_activity]
                 bname = f_basename(t, ch)
                 img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
-                img_crop = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
+                img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
+
+                # these parameters are not dependent on channel
+                dict_crop_rot_param[t]["updated_crop_params"] = Dict()
+                dict_crop_rot_param[t]["updated_crop_params"]["crop_x"] = cx
+                dict_crop_rot_param[t]["updated_crop_params"]["crop_y"] = cy
+                dict_crop_rot_param[t]["updated_crop_params"]["crop_z"] = cz
+
 
                 path_base = joinpath(path_dir_mhd_crop, bname)
                 path_raw = path_base *".raw"
