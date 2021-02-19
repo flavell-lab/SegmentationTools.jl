@@ -88,7 +88,6 @@ Uncrops an ROI image.
 """
 function uncrop_img_roi(img_roi, crop_params, img_size; degree=Constant(), dtype=Int16)
     worm_centroid_cropped = [crop_params["worm_centroid"][i] - crop_params["updated_crop"][i][1] + 1 for i=1:3] 
-    println(worm_centroid_cropped)
     tfm = recenter(RotMatrix(-crop_params["θ"]), worm_centroid_cropped[1:2])
     uncropped_img = zeros(dtype, img_size)
 
