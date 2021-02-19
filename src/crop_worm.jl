@@ -76,6 +76,72 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
     return (new_img[1:cx[2]-cx[1]+1, 1:cy[2]-cy[1]+1, 1:cz[2]-cz[1]+1], cx, cy, cz)
 end
 
+"""
+Uncrops an ROI image.
+
+# Arguments
+- `img_roi`: ROI image to uncrop
+- `crop_params`: Dictionary of cropping parameters
+- `img_size`: Size of uncropped image
+- `degree` (optional): Interpolation method used. Default `Constant()` which results in nearest-neighbor interpolation
+- `dtype` (optional): Data type of uncropped image. Default `Int16`
+"""
+function uncrop_img_roi(img_roi, crop_params, img_size; degree=Constant(), dtype=Int16)
+    worm_centroid_cropped = [crop_params["worm_centroid"][i] - crop_params["updated_crop"][i][1] + 1 for i=1:3] 
+    println(worm_centroid_cropped)
+    tfm = recenter(RotMatrix(-crop_params["θ"]), worm_centroid_cropped[1:2])
+    uncropped_img = zeros(dtype, img_size)
+
+    for z=1:size(img_roi,3)
+        new_img_z = warp(img_roi[:,:,z], tfm, degree)
+        for x=new_img_z.offsets[1]+1:new_img_z.offsets[1]+size(new_img_z,1)
+            for y=new_img_z.offsets[2]+1:new_img_z.offsets[2]+size(new_img_z,2)
+                val = new_img_z[x,y]
+                # skip NaN values
+                if isnan(val) || val == 0
+                    continue
+                end
+                coord = [x,y,z]
+                new_coord=[coord[i]+crop_params["updated_crop"][i][1]-1 for i=1:3]
+                # out of bounds
+                if any(new_coord .< [1,1,1]) || any(new_coord .> img_size)
+                    continue
+                end
+                if dtype <: Integer
+                    val = round(val)
+                end
+                uncropped_img[CartesianIndex(Tuple(new_coord))] = dtype(val)
+            end
+        end
+    end
+    return uncropped_img
+end
+
+"""
+Uncrops all ROI images.
+
+# Arguments
+ - `param_path::Dict`: Dictionary containing paths to files
+ - `param::Dict`: Dictionary containing pipeline parameters
+ - `crop_params::Dict`: Dictionary containing cropping parameters
+ - `img_size`: Size of uncropped images to generate
+ - `roi_cropped_key::String` (optional): Key in `param_path` corresponding to locations of ROI images to uncrop
+ - `roi_uncropped_key::String` (optional): Key in `param_path` corresponding to location to put uncropped ROI images
+"""
+function uncrop_img_rois(param_path::Dict, param::Dict, crop_params::Dict, img_size;
+        roi_cropped_key::String="path_dir_roi_watershed", roi_uncropped_key::String="path_dir_roi_watershed_uncropped")
+    create_dir(param_path[roi_uncropped_key])
+    @showprogess for t in param["t_range"]
+        img_roi_mhd = MHD(joinpath(param_path[roi_cropped_key], "$(t).mhd"))
+        img_roi = read_img(img_roi_mhd)
+        spacing = split(img_roi_mhd.mhd_spec_dict["ElementSpacing"], " ")
+        img_roi_uncropped = uncrop_img_roi(img_roi, crop_params[t], img_size)
+        write_raw(joinpath(param_path[roi_uncropped_key], "$(t).raw"), img_roi_uncropped)
+        write_MHD_spec(joinpath(param_path[roi_uncropped_key], "$(t).mhd"), spacing[1], spacing[end], img_size[1],
+            img_size[2], img_size[3], "$(t).raw")
+    end
+end
+
 """ Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
 function increase_crop_size!(crop, min_ind, max_ind, crop_size)
     if crop_size > max_ind - min_ind + 1

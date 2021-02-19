@@ -24,14 +24,21 @@ Can also plot raw data and semantic segmentation data for comparison.
 - `labeled_neurons`: neurons that should have a specific color, as an array of arrays.
 - `label_colors`: an array of colors, one for each array in `labeled_neurons`
 - `neuron_color`: the color of non-labeled neurons. If not supplied, all of them will be random different colors.
+- `overlay_intensity`: intensity of ROI overlay on raw image
 """
 function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600), axis=3,
-        raw_contrast=1, labeled_neurons=[], label_colors=[], neuron_color=nothing)
+        raw_contrast=1, labeled_neurons=[], label_colors=[], neuron_color=nothing, overlay_intensity=0)
     @assert(length(labeled_neurons) == length(label_colors))
     plot_imgs = []
+    overlay_img = zeros(RGB, size(raw))
+    if overlay_intensity > 0
+        for (idx, neuron) in enumerate(labeled_neurons)
+            overlay_img[img_roi .== neuron] .= label_colors[idx]
+        end
+    end
     if !isnothing(raw)
         max_img = maximum(raw)
-        push!(plot_imgs, map(x->RGB.(x/max_img*raw_contrast, x/max_img*raw_contrast, x/max_img*raw_contrast), raw))
+        push!(plot_imgs, map(x->RGB.(x/max_img*raw_contrast, x/max_img*raw_contrast, x/max_img*raw_contrast), raw) .+ overlay_img .* overlay_intensity)
     end
     if !isnothing(predicted)
         push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
