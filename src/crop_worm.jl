@@ -131,7 +131,7 @@ Uncrops all ROI images.
 function uncrop_img_rois(param_path::Dict, param::Dict, crop_params::Dict, img_size;
         roi_cropped_key::String="path_dir_roi_watershed", roi_uncropped_key::String="path_dir_roi_watershed_uncropped")
     create_dir(param_path[roi_uncropped_key])
-    @showprogess for t in param["t_range"]
+    @showprogress for t in param["t_range"]
         img_roi_mhd = MHD(joinpath(param_path[roi_cropped_key], "$(t).mhd"))
         img_roi = read_img(img_roi_mhd)
         spacing = split(img_roi_mhd.mhd_spec_dict["ElementSpacing"], " ")
