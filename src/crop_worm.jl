@@ -159,9 +159,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
                 threshold_intensity=threshold_intensity, threshold_size=threshold_size)
             dict_crop_rot_param[t] = Dict()
-            dict_crop_rot_param[t]["crop_x"] = crop_x
-            dict_crop_rot_param[t]["crop_y"] = crop_y
-            dict_crop_rot_param[t]["crop_z"] = crop_z
+            dict_crop_rot_param[t]["crop"] = [crop_x, crop_y, crop_z]
             dict_crop_rot_param[t]["θ"] = θ_
             dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
             dict_crop_rot_param[t]["updated_crop_params"] = Dict()
@@ -178,10 +176,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
                 img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
 
                 # these parameters are not dependent on channel
-                dict_crop_rot_param[t]["updated_crop_params"] = Dict()
-                dict_crop_rot_param[t]["updated_crop_params"]["crop_x"] = cx
-                dict_crop_rot_param[t]["updated_crop_params"]["crop_y"] = cy
-                dict_crop_rot_param[t]["updated_crop_params"]["crop_z"] = cz
+                dict_crop_rot_param[t]["updated_crop"] = [cx, cy, cz]
 
 
                 path_base = joinpath(path_dir_mhd_crop, bname)
