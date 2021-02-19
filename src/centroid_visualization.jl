@@ -29,26 +29,28 @@ function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
         raw_contrast=1, labeled_neurons=[], label_colors=[], neuron_color=nothing)
     @assert(length(labeled_neurons) == length(label_colors))
     plot_imgs = []
-    if raw != nothing
+    if !isnothing(raw)
         max_img = maximum(raw)
         push!(plot_imgs, map(x->RGB.(x/max_img*raw_contrast, x/max_img*raw_contrast, x/max_img*raw_contrast), raw))
     end
-    if predicted != nothing
+    if !isnothing(predicted)
         push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
     end
-    num = maximum(img_roi)+1
-    if neuron_color == nothing
-        colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
-    else
-        colors = [neuron_color for i=1:num]
-    end
-    colors[1] = RGB.(0,0,0)
-    for i in 1:length(labeled_neurons)
-        for neuron in labeled_neurons[i]
-            colors[neuron+1] = label_colors[i]
+    if !isnothing(img_roi)
+        num = maximum(img_roi)+1
+        if isnothing(neuron_color)
+            colors = [RGB.(color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand(), color_brightness+(1-color_brightness)*rand()) for i=1:num]
+        else
+            colors = [neuron_color for i=1:num]
         end
+        colors[1] = RGB.(0,0,0)
+        for i in 1:length(labeled_neurons)
+            for neuron in labeled_neurons[i]
+                colors[neuron+1] = label_colors[i]
+            end
+        end
+        push!(plot_imgs, map(x->colors[x+1], img_roi))
     end
-    push!(plot_imgs, map(x->colors[x+1], img_roi))
     @manipulate for z=1:size(plot_imgs[1])[axis]
         i = [(dim == axis) ? z : Colon() for dim=1:3]
         make_plot_grid([img[i[1],i[2],i[3]] for img in plot_imgs], length(plot_imgs), plot_size)
