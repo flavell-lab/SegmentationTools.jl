@@ -31,18 +31,6 @@ function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
     @assert(length(labeled_neurons) == length(label_colors))
     plot_imgs = []
     overlay_img = zeros(RGB, size(raw))
-    if overlay_intensity > 0
-        for (idx, neuron) in enumerate(labeled_neurons)
-            overlay_img[img_roi .== neuron] .= label_colors[idx]
-        end
-    end
-    if !isnothing(raw)
-        max_img = maximum(raw)
-        push!(plot_imgs, map(x->RGB.(x/max_img*raw_contrast, x/max_img*raw_contrast, x/max_img*raw_contrast), raw) .+ overlay_img .* overlay_intensity)
-    end
-    if !isnothing(predicted)
-        push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
-    end
     if !isnothing(img_roi)
         num = maximum(img_roi)+1
         if isnothing(neuron_color)
@@ -56,8 +44,22 @@ function view_roi_3D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
                 colors[neuron+1] = label_colors[i]
             end
         end
+        if overlay_intensity > 0
+            overlay_img = map(x->colors[x+1]*overlay_intensity, img_roi)
+        end
+    end
+
+    if !isnothing(raw)
+        max_img = maximum(raw)
+        push!(plot_imgs, map(x->RGB.(x/max_img*raw_contrast, x/max_img*raw_contrast, x/max_img*raw_contrast), raw) .+ overlay_img .* overlay_intensity)
+    end
+    if !isnothing(predicted)
+        push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
+    end
+    if !isnothing(img_roi)
         push!(plot_imgs, map(x->colors[x+1], img_roi))
     end
+
     @manipulate for z=1:size(plot_imgs[1])[axis]
         i = [(dim == axis) ? z : Colon() for dim=1:3]
         make_plot_grid([img[i[1],i[2],i[3]] for img in plot_imgs], length(plot_imgs), plot_size)
