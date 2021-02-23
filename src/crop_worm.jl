@@ -42,19 +42,19 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
     for z=cz[1]:cz[2]
         new_img_z = warp(img[:,:,z], tfm, degree)
         # initialize x and y cropping parameters
-        if cx == nothing
+        if isnothing(cx)
             cx = [crop_x[1]-crop_pad[1], crop_x[2]+crop_pad[1]]
             cx = [max(cx[1], new_img_z.offsets[1]+1), min(cx[2], new_img_z.offsets[1] + size(new_img_z)[1])]
             increase_crop_size!(cx, new_img_z.offsets[1] + 1, new_img_z.offsets[1] + size(new_img_z)[1], min_crop_size[1])
         end
         
-        if cy == nothing
+        if isnothing(cy)
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
             increase_crop_size!(cy, new_img_z.offsets[1] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
         end
 
-        if new_img == nothing
+        if isnothing(new_img)
             new_img = zeros(dtype, (cx[2] - cx[1] + 1, cy[2] - cy[1] + 1, cz[2] - cz[1] + 1))
         end
 
@@ -73,7 +73,72 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         end
     end
 
-    return new_img[1:cx[2]-cx[1]+1, 1:cy[2]-cy[1]+1, 1:cz[2]-cz[1]+1]
+    return (new_img[1:cx[2]-cx[1]+1, 1:cy[2]-cy[1]+1, 1:cz[2]-cz[1]+1], cx, cy, cz)
+end
+
+"""
+Uncrops an ROI image.
+
+# Arguments
+- `img_roi`: ROI image to uncrop
+- `crop_params`: Dictionary of cropping parameters
+- `img_size`: Size of uncropped image
+- `degree` (optional): Interpolation method used. Default `Constant()` which results in nearest-neighbor interpolation
+- `dtype` (optional): Data type of uncropped image. Default `Int16`
+"""
+function uncrop_img_roi(img_roi, crop_params, img_size; degree=Constant(), dtype=Int16)
+    worm_centroid_cropped = [crop_params["worm_centroid"][i] - crop_params["updated_crop"][i][1] + 1 for i=1:3] 
+    tfm = recenter(RotMatrix(-crop_params["θ"]), worm_centroid_cropped[1:2])
+    uncropped_img = zeros(dtype, img_size)
+
+    for z=1:size(img_roi,3)
+        new_img_z = warp(img_roi[:,:,z], tfm, degree)
+        for x=new_img_z.offsets[1]+1:new_img_z.offsets[1]+size(new_img_z,1)
+            for y=new_img_z.offsets[2]+1:new_img_z.offsets[2]+size(new_img_z,2)
+                val = new_img_z[x,y]
+                # skip NaN values
+                if isnan(val) || val == 0
+                    continue
+                end
+                coord = [x,y,z]
+                new_coord=[coord[i]+crop_params["updated_crop"][i][1]-1 for i=1:3]
+                # out of bounds
+                if any(new_coord .< [1,1,1]) || any(new_coord .> img_size)
+                    continue
+                end
+                if dtype <: Integer
+                    val = round(val)
+                end
+                uncropped_img[CartesianIndex(Tuple(new_coord))] = dtype(val)
+            end
+        end
+    end
+    return uncropped_img
+end
+
+"""
+Uncrops all ROI images.
+
+# Arguments
+ - `param_path::Dict`: Dictionary containing paths to files
+ - `param::Dict`: Dictionary containing pipeline parameters
+ - `crop_params::Dict`: Dictionary containing cropping parameters
+ - `img_size`: Size of uncropped images to generate
+ - `roi_cropped_key::String` (optional): Key in `param_path` corresponding to locations of ROI images to uncrop
+ - `roi_uncropped_key::String` (optional): Key in `param_path` corresponding to location to put uncropped ROI images
+"""
+function uncrop_img_rois(param_path::Dict, param::Dict, crop_params::Dict, img_size;
+        roi_cropped_key::String="path_dir_roi_watershed", roi_uncropped_key::String="path_dir_roi_watershed_uncropped")
+    create_dir(param_path[roi_uncropped_key])
+    @showprogress for t in param["t_range"]
+        img_roi_mhd = MHD(joinpath(param_path[roi_cropped_key], "$(t).mhd"))
+        img_roi = read_img(img_roi_mhd)
+        spacing = split(img_roi_mhd.mhd_spec_dict["ElementSpacing"], " ")
+        img_roi_uncropped = uncrop_img_roi(img_roi, crop_params[t], img_size)
+        write_raw(joinpath(param_path[roi_uncropped_key], "$(t).raw"), img_roi_uncropped)
+        write_MHD_spec(joinpath(param_path[roi_uncropped_key], "$(t).mhd"), spacing[1], spacing[end], img_size[1],
+            img_size[2], img_size[3], "$(t).raw")
+    end
 end
 
 """ Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
@@ -150,7 +215,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Exception}()
-    dict_crop_rot_param = Dict{Int, Array{Any, 1}}()
+    dict_crop_rot_param = Dict{Int, Dict}()
     
     @showprogress for t = t_range
         try
@@ -158,7 +223,11 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             
             crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
                 threshold_intensity=threshold_intensity, threshold_size=threshold_size)
-            dict_crop_rot_param[t] = [crop_x, crop_y, crop_z, θ_, worm_centroid]
+            dict_crop_rot_param[t] = Dict()
+            dict_crop_rot_param[t]["crop"] = [crop_x, crop_y, crop_z]
+            dict_crop_rot_param[t]["θ"] = θ_
+            dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
+            dict_crop_rot_param[t]["updated_crop_params"] = Dict()
             
             if crop_z[1] < 1 || crop_z[2] >= size(img)[3]
                 throw(WormOutOfFocus(t))
@@ -169,7 +238,11 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             for ch = [ch_marker, ch_activity]
                 bname = f_basename(t, ch)
                 img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
-                img_crop = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
+                img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
+
+                # these parameters are not dependent on channel
+                dict_crop_rot_param[t]["updated_crop"] = [cx, cy, cz]
+
 
                 path_base = joinpath(path_dir_mhd_crop, bname)
                 path_raw = path_base *".raw"
