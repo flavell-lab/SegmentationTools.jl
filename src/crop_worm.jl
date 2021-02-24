@@ -51,7 +51,7 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         if isnothing(cy)
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
-            increase_crop_size!(cy, new_img_z.offsets[1] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
+            increase_crop_size!(cy, new_img_z.offsets[2] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
         end
 
         if isnothing(new_img)
@@ -143,6 +143,7 @@ end
 
 """ Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
 function increase_crop_size!(crop, min_ind, max_ind, crop_size)
+    # crop size is larger than image size
     if crop_size > max_ind - min_ind + 1
         throw("Crop size cannot be larger than image size")
     end
@@ -230,9 +231,9 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             dict_crop_rot_param[t]["updated_crop_params"] = Dict()
             
             if crop_z[1] < 1 || crop_z[2] >= size(img)[3]
-                throw(WormOutOfFocus(t))
+                error("Worm out of focus")
             elseif crop_z[2] - crop_z[1] > 65 # thickness/n_z of the worm
-                throw(InsufficientCropping(t))
+                error("Insufficient z-cropping")
             end
 
             for ch = [ch_marker, ch_activity]
