@@ -267,7 +267,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     return dict_crop_rot_param, dict_error
 end
 
-function crop_rotate(param::Dict, param_path::Dict, t_range, ch_list; save_MIP::Bool=true, mhd_dir_key::String="path_dir_mhd")
+function crop_rotate(param::Dict, param_path::Dict, t_range, ch_list; save_MIP::Bool=true, mhd_dir_key::String="path_dir_mhd_shearcorrect")
     path_dir_mhd = param_path[mhd_dir_key]
     path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
     path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
