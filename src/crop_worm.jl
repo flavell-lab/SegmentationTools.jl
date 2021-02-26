@@ -220,7 +220,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     
     @showprogress for t = t_range
         try
-            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")))
+            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_list[1]) * ".mhd")))
             
             crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
                 threshold_intensity=threshold_intensity, threshold_size=threshold_size)
