@@ -267,7 +267,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     return dict_crop_rot_param, dict_error
 end
 
-function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true; mhd_dir_key::String="path_dir_mhd")
+function crop_rotate(param::Dict, param_path::Dict, t_range, ch_list; save_MIP::Bool=true, mhd_dir_key::String="path_dir_mhd")
     path_dir_mhd = param_path[mhd_dir_key]
     path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
     path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
@@ -275,7 +275,8 @@ function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_
     threshold_intensity = param["crop_threshold_intensity"]
     spacing_axi = param["spacing_axi"]
     spacing_lat = param["spacing_lat"]
+    f_basename = param_path["get_basename"]
 
-    crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_marker, ch_activity,
+    crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_list,
         threshold_size, threshold_intensity, spacing_axi, spacing_lat, f_basename, save_MIP)
 end
