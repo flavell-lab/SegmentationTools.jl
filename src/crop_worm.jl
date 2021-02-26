@@ -211,7 +211,7 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
 
-function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_marker::Int, ch_activity::Int,
+function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_list,
         threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
@@ -236,7 +236,7 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
                 error("Insufficient z-cropping")
             end
 
-            for ch = [ch_marker, ch_activity]
+            for ch = ch_list
                 bname = f_basename(t, ch)
                 img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
                 img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
@@ -267,8 +267,8 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     return dict_crop_rot_param, dict_error
 end
 
-function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true)
-    path_dir_mhd = param_path["path_dir_mhd"]
+function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true; mhd_dir_key::String="path_dir_mhd")
+    path_dir_mhd = param_path[mhd_dir_key]
     path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
     path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
     threshold_size = param["crop_threshold_size"]
