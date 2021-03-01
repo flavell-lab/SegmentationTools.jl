@@ -270,7 +270,7 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
         @warn "Worm could not be detected or cropped at some time points."
     end
     
-    return dict_crop_rot_param, dict_error
+    return dict_error
 end
 
 function crop_rotate!(param_path::Dict, param::Dict, t_range, ch_list, dict_crop_rot_param::Dict; save_MIP::Bool=true,
