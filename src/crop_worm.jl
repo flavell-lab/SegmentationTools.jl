@@ -211,24 +211,28 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
 
-function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_list,
+function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_list, dict_crop_rot_param::Dict,
         threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Any}()
-    dict_crop_rot_param = Dict{Int, Dict}()
     
     @showprogress for t = t_range
         try
             img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_list[1]) * ".mhd")))
-            
-            crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
-                threshold_intensity=threshold_intensity, threshold_size=threshold_size)
-            dict_crop_rot_param[t] = Dict()
-            dict_crop_rot_param[t]["crop"] = [crop_x, crop_y, crop_z]
-            dict_crop_rot_param[t]["θ"] = θ_
-            dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
-            dict_crop_rot_param[t]["updated_crop_params"] = Dict()
+            if haskey(dict_crop_rot_param, t)
+                crop_x, crop_y, crop_z = dict_crop_rot_param[t]["crop"]
+                θ_ = dict_crop_rot_param[t]["θ"]
+                worm_centroid = dict_crop_rot_param[t]["worm_centroid"]
+            else
+                dict_crop_rot_param[t] = Dict()
+                crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
+                    threshold_intensity=threshold_intensity, threshold_size=threshold_size)
+                dict_crop_rot_param[t] = Dict()
+                dict_crop_rot_param[t]["crop"] = [crop_x, crop_y, crop_z]
+                dict_crop_rot_param[t]["θ"] = θ_
+                dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
+            end
             
             if crop_z[1] < 1 || crop_z[2] >= size(img)[3]
                 error("Worm out of focus")
@@ -242,7 +246,9 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
                 img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
 
                 # these parameters are not dependent on channel
-                dict_crop_rot_param[t]["updated_crop"] = [cx, cy, cz]
+                if !haskey(dict_crop_rot_param[t], "updated_crop")
+                    dict_crop_rot_param[t]["updated_crop"] = [cx, cy, cz]
+                end
 
 
                 path_base = joinpath(path_dir_mhd_crop, bname)
@@ -267,16 +273,17 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
     return dict_crop_rot_param, dict_error
 end
 
-function crop_rotate(param::Dict, param_path::Dict, t_range, ch_list; save_MIP::Bool=true, mhd_dir_key::String="path_dir_mhd_shearcorrect")
+function crop_rotate!(param_path::Dict, param::Dict, t_range, ch_list, dict_crop_rot_param::Dict; save_MIP::Bool=true,
+        mhd_dir_key::String="path_dir_mhd_shearcorrect", mhd_crop_dir_key::String="path_dir_mhd_crop", mip_crop_dir_key::String="path_dir_MIP_crop")
     path_dir_mhd = param_path[mhd_dir_key]
-    path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
-    path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
+    path_dir_mhd_crop = param_path[mhd_crop_dir_key]
+    path_dir_MIP_crop = param_path[mip_crop_dir_key]
     threshold_size = param["crop_threshold_size"]
     threshold_intensity = param["crop_threshold_intensity"]
     spacing_axi = param["spacing_axi"]
     spacing_lat = param["spacing_lat"]
     f_basename = param_path["get_basename"]
 
-    crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_list,
+    crop_rotate!(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_list, dict_crop_rot_param,
         threshold_size, threshold_intensity, spacing_axi, spacing_lat, f_basename, save_MIP)
 end
