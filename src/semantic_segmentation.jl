@@ -2,7 +2,12 @@
 Makes a local copy of a parameter file, modifies directories in that parameter file, then calls the UNet.
 
 # Arguments
-- `param_path`: path parameter dictionary
+- `param_path`: path parameter dictionary including:
+    - `path_root_process`: Root data path
+    - `path_dir_unet_data`: Path to UNet input and output directory
+    - `path_unet_pred`: Path to the `predict.py` file in `pytorch-3d-unet` installation
+    - `path_unet_param`: Path to UNet prediction parameter file
+    - `path_unet_py_env`: Path to a script that initializes the relevant environment variables for the UNet to run
 """
 function call_unet(param_path::Dict)
     path_root_process = param_path["path_root_process"]

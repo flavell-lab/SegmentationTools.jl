@@ -83,11 +83,11 @@ Can also plot raw data and semantic segmentation data for comparison.
 """
 function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3)
     plot_imgs = []
-    if raw != nothing
+    if !isnothing(raw)
         max_img = maximum(raw)
         push!(plot_imgs, map(x->RGB.(x/max_img, x/max_img, x/max_img), raw))
     end
-    if predicted != nothing
+    if !isnothing(predicted)
         push!(plot_imgs, map(x->RGB.(x,x,x), predicted))
     end
     num = maximum(img_roi)+1
@@ -98,7 +98,11 @@ function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3)
 end
 
 """
-Displays the `centriods` of an image, superimposed on the image `img`. Assumes 3D image and centroids.
+Displays the centroids of an image.
+
+# Arguments:
+ - `img`: Image
+ - `centriods`: Centroids of the image, to be superimposed on the image.
 """
 function view_centroids_3D(img, centroids)
     @manipulate for z=1:size(img)[3]
@@ -107,10 +111,14 @@ function view_centroids_3D(img, centroids)
 end
 
 """
-Displays the `centriods` of an image, superimposed on the image `img`. Assumes 2D image.
-The centroids can be 3D; only the first two dimensions will be used.
+Displays the centroids of an image.
+
+# Arguments:
+
+- `img`: Image
+- `centriods`: Centroids of the image, to be superimposed on the image. They can be 3D; if they are, the first dimension will be ignored.
 """
 function view_centroids_2D(img, centroids)
     Plots.heatmap(img, fillcolor=:viridis, aspect_ratio=1, showaxis=false, flip=false)
-    Plots.scatter!(map(x->x[2], valid_centroids), map(x->x[1], valid_centroids), flip=false, seriesalpha=0.3)
+    Plots.scatter!(map(x->x[2], centroids), map(x->x[1], centroids), flip=false, seriesalpha=0.3)
 end
