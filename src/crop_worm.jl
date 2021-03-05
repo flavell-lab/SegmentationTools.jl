@@ -15,7 +15,7 @@ Rotates and then crops an image, optionally along with its head and centroid loc
 If kept at its default value "median", the median of the image will be used.
 Otherwise, it can be set to a numerical value.
 - `degree`: degree of the interpolation. Default `Linear()`; can set to `Constant()` for nearest-neighbors.
-- `dtype`: type of data in resulting image
+- `dtype`: type of data in resulting image. Default `Int16`.
 - `crop_pad`: amount to pad the cropping in each dimension. Default 5 pixels in each dimension.
 - `min_crop_size`: minimum size of cropped image. Default [210,96,51], the UNet input size.
 
@@ -51,7 +51,7 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
         if isnothing(cy)
             cy = [crop_y[1]-crop_pad[2], crop_y[2]+crop_pad[2]]
             cy = [max(cy[1], new_img_z.offsets[2]+1), min(cy[2], new_img_z.offsets[2] + size(new_img_z)[2])]
-            increase_crop_size!(cy, new_img_z.offsets[1] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
+            increase_crop_size!(cy, new_img_z.offsets[2] + 1, new_img_z.offsets[2] + size(new_img_z)[2], min_crop_size[2])
         end
 
         if isnothing(new_img)
@@ -124,8 +124,8 @@ Uncrops all ROI images.
  - `param::Dict`: Dictionary containing pipeline parameters
  - `crop_params::Dict`: Dictionary containing cropping parameters
  - `img_size`: Size of uncropped images to generate
- - `roi_cropped_key::String` (optional): Key in `param_path` corresponding to locations of ROI images to uncrop
- - `roi_uncropped_key::String` (optional): Key in `param_path` corresponding to location to put uncropped ROI images
+ - `roi_cropped_key::String` (optional): Key in `param_path` corresponding to locations of ROI images to uncrop. Default `path_dir_roi_watershed`.
+ - `roi_uncropped_key::String` (optional): Key in `param_path` corresponding to location to put uncropped ROI images. Default `path_dir_roi_watershed_uncropped`.
 """
 function uncrop_img_rois(param_path::Dict, param::Dict, crop_params::Dict, img_size;
         roi_cropped_key::String="path_dir_roi_watershed", roi_uncropped_key::String="path_dir_roi_watershed_uncropped")
@@ -143,6 +143,7 @@ end
 
 """ Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
 function increase_crop_size!(crop, min_ind, max_ind, crop_size)
+    # crop size is larger than image size
     if crop_size > max_ind - min_ind + 1
         throw("Crop size cannot be larger than image size")
     end
@@ -168,8 +169,8 @@ The cropping parameters are designed to remove the maximum fraction of non-worm 
 - `img`: Image to crop
 
 # Optional keyword arguments
-- `threshold_intensity`: Number of standard deviations above mean for a pixel to be considered part of the worm
-- `threshold_size`: Number of adjacent pixels that must meet the threshold to be counted.
+- `threshold_intensity`: Number of standard deviations above mean for a pixel to be considered part of the worm. Default 3.
+- `threshold_size`: Number of adjacent pixels that must meet the threshold to be counted. Default 10.
 """
 function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size::Int=10)
     # threshold image to detect worm
@@ -210,38 +211,45 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
 
-function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_marker::Int, ch_activity::Int,
+
+function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_list, dict_crop_rot_param::Dict,
         threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
-    dict_error = Dict{Int, Exception}()
-    dict_crop_rot_param = Dict{Int, Dict}()
+    dict_error = Dict{Int, Any}()
     
     @showprogress for t = t_range
         try
-            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")))
-            
-            crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
-                threshold_intensity=threshold_intensity, threshold_size=threshold_size)
-            dict_crop_rot_param[t] = Dict()
-            dict_crop_rot_param[t]["crop"] = [crop_x, crop_y, crop_z]
-            dict_crop_rot_param[t]["θ"] = θ_
-            dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
-            dict_crop_rot_param[t]["updated_crop_params"] = Dict()
+            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_list[1]) * ".mhd")))
+            if haskey(dict_crop_rot_param, t)
+                crop_x, crop_y, crop_z = dict_crop_rot_param[t]["crop"]
+                θ_ = dict_crop_rot_param[t]["θ"]
+                worm_centroid = dict_crop_rot_param[t]["worm_centroid"]
+            else
+                dict_crop_rot_param[t] = Dict()
+                crop_x, crop_y, crop_z, θ_, worm_centroid = get_crop_rotate_param(img,
+                    threshold_intensity=threshold_intensity, threshold_size=threshold_size)
+                dict_crop_rot_param[t] = Dict()
+                dict_crop_rot_param[t]["crop"] = [crop_x, crop_y, crop_z]
+                dict_crop_rot_param[t]["θ"] = θ_
+                dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
+            end
             
             if crop_z[1] < 1 || crop_z[2] >= size(img)[3]
-                throw(WormOutOfFocus(t))
+                error("Worm out of focus")
             elseif crop_z[2] - crop_z[1] > 65 # thickness/n_z of the worm
-                throw(InsufficientCropping(t))
+                error("Insufficient z-cropping")
             end
 
-            for ch = [ch_marker, ch_activity]
+            for ch = ch_list
                 bname = f_basename(t, ch)
                 img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
                 img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
 
                 # these parameters are not dependent on channel
-                dict_crop_rot_param[t]["updated_crop"] = [cx, cy, cz]
+                if !haskey(dict_crop_rot_param[t], "updated_crop")
+                    dict_crop_rot_param[t]["updated_crop"] = [cx, cy, cz]
+                end
 
 
                 path_base = joinpath(path_dir_mhd_crop, bname)
@@ -258,19 +266,43 @@ function crop_rotate(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_M
             dict_error[t] = e_
         end
     end
+
+    if length(keys(dict_error)) != 0
+        @warn "Worm could not be detected or cropped at some time points."
+    end
     
-    return dict_crop_rot_param, dict_error
+    return dict_error
 end
 
-function crop_rotate(param::Dict, param_path::Dict, t_range; ch_marker::Int, ch_activity::Int, f_basename::Function, save_MIP::Bool=true)
-    path_dir_mhd = param_path["path_dir_mhd"]
-    path_dir_mhd_crop = param_path["path_dir_mhd_crop"]
-    path_dir_MIP_crop = param_path["path_dir_MIP_crop"]
+"""
+Crops and rotates a set of images.
+
+# Arguments
+
+ - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns MHD file names.
+ - `param::Dict`: Dictionary containing parameters, including:
+    - `crop_threshold_intensity`: minimum number of standard deviations above the mean that a pixel must be for it to be categorized as part of a feature
+    - `crop_threshold_size`: minimum size of a feature for it to be categorized as part of the worm
+    - `spacing_axi`: Axial (z) spacing of the pixels, in um
+    - `spacing_lat`: Lateral (xy) spacing of the pixels, in um
+ - `dict_crop_rot_param::Dict`: For each time point, the cropping parameters to use for that time point.
+    If the cropping parameters at a time point are not found, they will be stored in the dictionary, modifying it.
+ - `save_MIP::Bool` (optional): Whether to save png files. Default `true`
+ - `mhd_dir_key::String` (optional): Key in `param_path` to directory to input MHD files. Default `path_dir_mhd_shearcorrect`
+ - `mhd_crop_dir_key::String` (optional): Key in `param_path` to directory to output MHD files. Default `path_dir_mhd_crop`
+ - `mip_crop_dir_key::String` (optional): Key in `param_path` to directory to output MIP files. Default `path_dir_MIP_crop`
+"""
+function crop_rotate!(param_path::Dict, param::Dict, t_range, ch_list, dict_crop_rot_param::Dict; save_MIP::Bool=true,
+        mhd_dir_key::String="path_dir_mhd_shearcorrect", mhd_crop_dir_key::String="path_dir_mhd_crop", mip_crop_dir_key::String="path_dir_MIP_crop")
+    path_dir_mhd = param_path[mhd_dir_key]
+    path_dir_mhd_crop = param_path[mhd_crop_dir_key]
+    path_dir_MIP_crop = param_path[mip_crop_dir_key]
     threshold_size = param["crop_threshold_size"]
     threshold_intensity = param["crop_threshold_intensity"]
     spacing_axi = param["spacing_axi"]
     spacing_lat = param["spacing_lat"]
+    f_basename = param_path["get_basename"]
 
-    crop_rotate(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_marker, ch_activity,
+    crop_rotate!(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_list, dict_crop_rot_param,
         threshold_size, threshold_intensity, spacing_axi, spacing_lat, f_basename, save_MIP)
 end

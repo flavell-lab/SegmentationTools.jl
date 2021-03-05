@@ -43,6 +43,7 @@ export
     instance_segmentation_watershed,
     get_crop_rotate_param,
     crop_rotate,
+    crop_rotate!,
     uncrop_img_roi,
     uncrop_img_rois,
     call_unet

@@ -1,23 +1,27 @@
 """
-Runs instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
+Runs watershed instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
 Skips a given output method if the corresponding output directory was empty
 Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
 
 # Arguments
-
-- `rootpath::String`, `frames`, `img_prefix::String`, `mhd_path::String`, and `channel::Integer`: 
-    Reads MHD files from, eg, `rootpath/mhd_path/img_prefix_t0123_ch2.mhd` for frame=123 and channel=2, and outputs resulting image.
-- `prediction_path::String`: Reads UNet predictions from `rootpath/prediction_path/frame_predictions.h5`
-- `roi_output_path::String`: Path to output image ROIs (relative to `rootpath`)
-
-# Optional keyword arguments
-
-- `centroids_output_path::String`: Path to output centroids (relative to `rootpath`). Set to "" (default) to not output centroids.
-- `activity_output_path::String`: Path to output activity (relative to `rootpath`). Set to "" (default) to not output activity.
-- `min_neuron_size::Integer`: smallest neuron size, in voxels. Default 10.
-- `threshold::Real`: UNet output threshold before the pixel is considered foreground. Default 0.75.
+- `param::Dict`: Dictionary containing parameters, including:
+   - `seg_threshold_unet`: Confidence threshold of the UNet output for a pixel to be counted as a neuron.
+   - `seg_min_neuron_size`: Minimum neuron size, in voxels
+   - `seg_threshold_watershed`: Confidence thresholds of the UNet output for a pixel to be counted as a neuron in each watershed step
+   - `seg_watershed_min_neuron_sizes`: Minimum neuron sizes, in voxels, in each watershed step
+ - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns MHD file names, including:
+    - `path_dir_unet_data`: Path to UNet output data (input to the watershed algorithm)
+    - `path_dir_roi`: Path to non-watershed ROI ouptut data
+    - `path_dir_roi_watershed`: Path to watershed ROI output data
+    - `path_dir_marker_signal`: Path to marker channel signal output data
+    - `path_dir_centroid`: Path to centroid output data
+ - `path_dir_mhd::String`: Path to MHD files
+ - `t_range`: Time points to watershed
+ - `f_basename::Function`: Function that returns the name of MHD files
+ - `save_centroid::Bool` (optional): Whether to save centroids. Default `false`
+ - `save_signal::Bool` (optional): Whether to save marker signal. Default `false`
+ - `save_roi::Bool` (optional): Whether to save ROIs before watershedding. Default `false`.
 """
-# TODO: document
 function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range,
         f_basename::Function; save_centroid::Bool=false, save_signal::Bool=false, save_roi::Bool=false)
 
@@ -221,7 +225,7 @@ function get_points(img_roi, roi)
 end
 
 """
-Computes the distance between two points `p1` and `p2`, with the z-axis scaled by `zscale`.
+Computes the distance between two points `p1` and `p2`, with the z-axis scaled by `zscale` (default 1).
 """
 function distance(p1, p2; zscale=1)
     dim_dist = collect(Float64, (p1 .- p2) .* (p1 .- p2))
@@ -231,7 +235,7 @@ end
 
 """
 Does watershed segmentation on a set of `points` and their convex `hull`, with the intent of splitting concave neurons.
-Scales z-axis by `zscale` (default 1) and expands first segmented neuron by `init_scale` to determine second neuron location.
+Scales z-axis by `zscale` (default 1) and expands first segmented neuron by `init_scale` (default 0.7) to determine second neuron location.
 """
 function hull_watershed(points, hull; zscale=1, init_scale=0.7)
     weight = sum([(1 - hull[pt][1]) * hull[pt][2] for pt in keys(hull)])
@@ -373,7 +377,7 @@ end
 """
 Instance segments an image `img_roi` given set of `points` with a given convex `hull` via watershedding.
 Discards neurons with size less than `min_neuron_size` (default 10), scales z-axis by `zscale` (default 1),
-and expands first segmented neuron by `init_scale` to determine second neuron location.
+and expands first segmented neuron by `init_scale` (default 0.7) to determine second neuron location.
 """
 function instance_segment_hull(img_roi, points, hull; min_neuron_size=10, zscale=1, init_scale=0.7)
     neuron_1, neuron_2 = hull_watershed(points, hull, zscale=zscale, init_scale=init_scale)
@@ -405,7 +409,7 @@ end
 
 """
 Finds the `num_neurons` (default 10) most concave neurons in an image `img_roi`.
-Concave neurons must also meet the `threshold_scale`.
+Concave neurons must also meet the `threshold_scale` (default 0.3).
 """
 function find_concave_neurons(img_roi; num_neurons=10, threshold_scale=0.3)
     hull_points = Dict()
@@ -443,12 +447,12 @@ Recursively segments all concave neurons in an image.
 # Optional keyword arguments
 - `threshold_scale::Real`: Neurons less concave than this won't be segmented. Default 0.3
 - `num_neurons::Real`: Maximum number of concave neurons per frame. Defaul 10.
-- `zscale::Real`: Scale of z-axis relative to xy plane. Default 2.78.
+- `zscale::Real`: Scale of z-axis relative to xy plane. Default 1.
 - `min_neuron_size::Integer`: Minimum size of a neuron (in pixels). Default 10.
 - `scale_recurse_multiply::Real`: Factor to increase the concavity threshold for recursive segmentation. Default 1.5.
 - `init_scale::Real`: Amount to expand first neuron before computing location of second neuron. Default 0.7. 
 """
-function instance_segment_concave(img_roi; threshold_scale::Real=0.3, init_scale::Real=0.7, zscale::Real=2.78, min_neuron_size::Integer=10, scale_recurse_multiply::Real=1.5, num_neurons::Integer=10)
+function instance_segment_concave(img_roi; threshold_scale::Real=0.3, init_scale::Real=0.7, zscale::Real=1, min_neuron_size::Integer=10, scale_recurse_multiply::Real=1.5, num_neurons::Integer=10)
     concave, score = find_concave_neurons(img_roi, threshold_scale=threshold_scale, num_neurons=num_neurons)
     threshold_scale_recurse = score * scale_recurse_multiply
     concave_queue = Queue{Int64}()

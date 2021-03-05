@@ -70,7 +70,7 @@ down from the foreground weight. "Background-gap" data that serves to mark bound
 
 - `scale_xy::Real`: Inverse of the distance in the xy-plane, in pixels, before the background data weight is halved. Default 0.36.
 - `scale_z::Real`: Inverse of the distance in the z-plane, in pixels, before the background data weight is halved. Default 1.
-- `metric::String`: Metric to compute distance. Default taxicab (currently, no other metrics are implemented, but they will likely be added in a future release.)
+- `metric::String`: Metric to compute distance. Default taxicab (currently, no other metrics are implemented)
 - `weight_foreground::Real`: weight of foreground (1) label
 - `weight_bkg_gap::Real`: weight of background-gap (3) label
 - `boundary_weight`: weight of foreground (2) pixels adjacent to background (1 and 3) pixels. Default nothing, which uses default foreground weight.
@@ -239,38 +239,40 @@ end
 
 
 """
-Generates an HDF5 file, to be input to the UNet, out of a raw image file and a label file. Assumes 3D data.
+Makes a UNet input file. This function supports making files either for training or prediction.
 
 # Arguments
-
-- `rootpath::String`: Working directory path; all other paths are relative to this.
-- `hdf5_path::String`: Path to HDF5 output file to be generated.
-- `nrrd_path::String`: Path to NRRD file containing labels. If set to the empty string, only the raw data will be added to the HDF5 file.
-- `mhd_path::String`: Path to MHD file containing raw data.
-
-# Optional keyword arguments
-
-- `crop`: `[crop_x, crop_y, crop_z], where every point with coordinates not in the given ranges is cropped out.
-- `transpose::Bool`: whether to transpose the x-y coordinates of the image.
-- `weight_strategy::String`: method to generate weights. Default and recommended is neighbors, which weights background pixels nearby foreground higher.
-    Alternative is proportional, which will weight foreground and background constantly at a value inversely proportional to the number of pixels in those weights.
-    The proportional weight function will ignore labels that are not 1 or 2 (including the background-gap label 3).
-    This parameter has no effect if `nrrd_path` is the empty string.
-- `metric::String`: metric used to infer distance. Default (and only metric currently implemented) is taxicab. 
-    This parameter has no effect if `nrrd_path` is the empty string.
-- `scale_xy::Real`: Inverse of the distance in the xy-plane, in pixels, before the background data weight is halved. Default 0.36.
-- `scale_z::Real`: Inverse of the distance in the z-plane, in pixels, before the background data weight is halved. Default 1.
-- `weight_foreground::Real`: weight of foreground (1) label
-- `weight_bkg_gap::Real`: weight of background-gap (3) label
-- `boundary_weight`: weight of foreground (2) pixels adjacent to background (1 and 3) pixels. Default nothing, which uses default foreground weight.
-- `bin_scale`: scale to bin image in each dimension [X,Y,Z]. Default [1,1,1] (no binning).
-- `SN_reduction_factor`: amount to reduce. Default 1 (no reduction)
-- `SN_percent`: percentile to estimate std of image from. Default 16.
-- `scale_bkg_gap::Bool`: whether to upweight background-gap pixels for each neuron pixel they border. Default false.
+- `img_raw::Array`: Raw image
+- `img_label::Union{Nothing, Array}`: Image label. If `nothing`, label and weight will not be generated.
+- `path_h5::String`: Path to HDF5 output directory.
+- `crop` (optional, default `nothing`): `[crop_x, crop_y, crop_z]`, where every point with coordinates not in the given ranges is cropped out.
+- `transpose::Bool` (optional, default `false`): whether to transpose the x-y coordinates of the image.
+- `weight_strategy::String` (optional): method to generate weights from labels. Default and recommended is `neighbors`, which weights background pixels nearby foreground higher.
+   Alternative is `proportional`, which will weight foreground and background constantly at a value inversely proportional to the number of pixels in those weights.
+   The `proportional` weight function will ignore labels that are not 1 or 2 (including the background-gap label 3).
+   This parameter has no effect if `img_label` is the empty string.
+- `metric::String` (optional): metric used to infer distance. Default (and only metric currently implemented) is `taxicab`. 
+   This parameter has no effect if `img_label` is the empty string.
+- `scale_xy::Real` (optional): Inverse of the distance in the xy-plane, in pixels, before the background data weight is halved. Default 1.
+    This parameter has no effect if `img_label` is the empty string.
+- `scale_z::Real` (optional): Inverse of the distance in the z-plane, in pixels, before the background data weight is halved. Default 1.
+    This parameter has no effect if `img_label` is the empty string.
+- `weight_foreground::Real` (optional, default 6): weight of foreground (1) label
+    This parameter has no effect if `img_label` is the empty string.
+- `weight_bkg_gap::Real` (optional, default 10): weight of background-gap (3) label
+    This parameter has no effect if `img_label` is the empty string.
+- `boundary_weight` (optional): weight of foreground (2) pixels adjacent to background (1 and 3) pixels. Default nothing, which uses default foreground weight.
+    This parameter has no effect if `img_label` is the empty string.
+- `bin_scale` (optional): scale to bin image in each dimension [X,Y,Z]. Default [1,1,1] (no binning).
+- `SN_reduction_factor` (optional): amount to reduce. Default 1 (no reduction)
+- `SN_percent` (optional): percentile to estimate std of image from. Default 16.
+- `scale_bkg_gap::Bool` (optional): whether to upweight background-gap pixels for each neuron pixel they border. Default false.
+    This parameter has no effect if `img_label` is the empty string.
 """
 function make_unet_input_h5(img_raw::Array, img_label::Union{Nothing,Array}, path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
     metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
     bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
+    
     make_label = !isnothing(img_label)
 
     if !isnothing(crop)
@@ -333,9 +335,41 @@ function make_unet_input_h5(img_raw::Array, img_label::Union{Nothing,Array}, pat
     nothing
 end
 
+"""
+Makes UNet input files from all files in a directory. This function supports making files either for training or prediction.
+
+# Arguments
+- `path_mhd::String`: Path to raw data MHD files
+- `path_nrrd::Union{Nothing, String}`: Path to NRRD label files. If nothing, labels and weights will not be generated.
+- `path_h5::String`: Path to HDF5 output files.
+- `crop` (optional, default `nothing`): `[crop_x, crop_y, crop_z]`, where every point with coordinates not in the given ranges is cropped out.
+- `transpose::Bool` (optional, default `false`): whether to transpose the x-y coordinates of the image.
+- `weight_strategy::String` (optional): method to generate weights from labels. Default and recommended is `neighbors`, which weights background pixels nearby foreground higher.
+   Alternative is `proportional`, which will weight foreground and background constantly at a value inversely proportional to the number of pixels in those weights.
+   The `proportional` weight function will ignore labels that are not 1 or 2 (including the background-gap label 3).
+   This parameter has no effect if `nrrd_path` is the empty string.
+- `metric::String` (optional): metric used to infer distance. Default (and only metric currently implemented) is `taxicab`. 
+   This parameter has no effect if `nrrd_path` is the empty string.
+- `scale_xy::Real` (optional): Inverse of the distance in the xy-plane, in pixels, before the background data weight is halved. Default 1.
+    This parameter has no effect if `nrrd_path` is the empty string.
+- `scale_z::Real` (optional): Inverse of the distance in the z-plane, in pixels, before the background data weight is halved. Default 1.
+    This parameter has no effect if `nrrd_path` is the empty string.
+- `weight_foreground::Real` (optional, default 6): weight of foreground (1) label
+    This parameter has no effect if `nrrd_path` is the empty string.
+- `weight_bkg_gap::Real` (optional, default 10): weight of background-gap (3) label
+    This parameter has no effect if `nrrd_path` is the empty string.
+- `boundary_weight` (optional): weight of foreground (2) pixels adjacent to background (1 and 3) pixels. Default nothing, which uses default foreground weight.
+    This parameter has no effect if `nrrd_path` is the empty string.
+- `bin_scale` (optional): scale to bin image in each dimension [X,Y,Z]. Default [1,1,1] (no binning).
+- `SN_reduction_factor` (optional): amount to reduce. Default 1 (no reduction)
+- `SN_percent` (optional): percentile to estimate std of image from. Default 16.
+- `scale_bkg_gap::Bool` (optional): whether to upweight background-gap pixels for each neuron pixel they border. Default false.
+    This parameter has no effect if `nrrd_path` is the empty string.
+"""
 function make_unet_input_h5(path_mhd::String, path_nrrd::Union{Nothing, String}, path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
-    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
+    metric::String="taxicab", scale_xy::Real=1, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
     bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
+
     make_label = !isnothing(path_nrrd)
     
     img_label = make_label ? collect(load(path_nrrd)) : nothing
@@ -350,22 +384,25 @@ function make_unet_input_h5(path_mhd::String, path_nrrd::Union{Nothing, String},
     nothing
 end
 
-function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_marker::Int,
-    f_basename::Function; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
-    metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, weight_foreground::Real=6,
-    weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1], SN_reduction_factor::Real=1,
-    SN_percent::Real=16, scale_bkg_gap::Bool=false)
+
+"""
+Generatesn HDF5 file, to be input to the UNet, out of a raw image file and a label file. Assumes 3D data.
+
+# Arguments
+ - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns MHD file names, including:
+    - `path_dir_unet_data`: Path to UNet input and output data
+ - `path_dir_mhd::String`: Path to MHD files
+ - `t_range`: Time points to watershed
+ - `ch_marker::Int`: Marker channel
+ - `f_basename::Function`: Function that returns the name of MHD files
+"""
+function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_marker::Int, f_basename::Function)
     
     path_dir_unet_data = param_path["path_dir_unet_data"]
     create_dir(path_dir_unet_data)
     
     @showprogress for t = t_range
         path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
-        make_unet_input_h5(path_mhd, nothing, joinpath(path_dir_unet_data, "$(t).h5"),
-            crop=crop, transpose=transpose, weight_strategy=weight_strategy,
-            metric=metric, scale_xy=scale_xy, scale_z=scale_z,
-            weight_foreground=weight_foreground, weight_bkg_gap=weight_bkg_gap,
-            boundary_weight=boundary_weight, bin_scale=bin_scale, SN_reduction_factor=SN_reduction_factor,
-            SN_percent=SN_percent, scale_bkg_gap=scale_bkg_gap)
+        make_unet_input_h5(path_mhd, nothing, joinpath(path_dir_unet_data, "$(t).h5"))
     end
 end

@@ -99,7 +99,7 @@ differential (in the order the predictions were specified in the array).
 # Optional keyword arguments
 
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
-- `size`: size of plot per row. Default (1800, 750).
+- `plot_size`: size of plot per row. Default (1800, 750).
 - `display_accuracy::Bool`: whether to display prediction accuracy (green for match, red for mismatch). Default true.
 - `contrast::Real`: contrast of raw image. Default 1.
 """
@@ -141,7 +141,7 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 # Optional keyword arguments
 
 - `cols::Integer`: maximum number of columns in the plot. Default 7.
-- `size`: size of plot per row. Default (1800, 750).
+- `plot_size`: size of plot per row. Default (1800, 750).
 - `axis`: axis to project, default 3
 - `display_accuracy::Bool`: whether to display prediction accuracy (green for match, red for mismatch). Default true.
 - `contrast::Real`: contrast of raw image. Default 1.
