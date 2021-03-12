@@ -1,6 +1,6 @@
 """
 Runs watershed instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
-Skips a given output method if the corresponding output directory was empty
+Skips a given output method if the corresponding output directory was empty.
 Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
 
 # Arguments
@@ -20,7 +20,7 @@ Returns dictionary of results and a list of error frames (most likely because th
  - `f_basename::Function`: Function that returns the name of MHD files
  - `save_centroid::Bool` (optional): Whether to save centroids. Default `false`
  - `save_signal::Bool` (optional): Whether to save marker signal. Default `false`
- - `save_roi::Bool` (optional): Whether to save ROIs before watershedding. Default `false`.
+ - `save_roi::Bool` (optional): Whether to save ROIs before watershedding. Default `false`
 """
 function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range,
         f_basename::Function; save_centroid::Bool=false, save_signal::Bool=false, save_roi::Bool=false)

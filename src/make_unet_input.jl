@@ -176,7 +176,7 @@ Scales an image down by using linear interpolation for the raw image, and bkg-ga
 
 - `dtype::String`: type of data - either "raw", "label", or "weight". Default raw.
 """
-function resample_img(img, scales; dtype="raw", idx=nothing)
+function resample_img(img, scales; dtype="raw")
     s = size(img)
     p = prod(scales)
     new_idx = Tuple(map(x->Int64(x), s .÷ scales))

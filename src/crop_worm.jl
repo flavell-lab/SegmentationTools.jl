@@ -285,6 +285,8 @@ Crops and rotates a set of images.
     - `crop_threshold_size`: minimum size of a feature for it to be categorized as part of the worm
     - `spacing_axi`: Axial (z) spacing of the pixels, in um
     - `spacing_lat`: Lateral (xy) spacing of the pixels, in um
+ - `t_range`: Time points to crop
+ - `ch_list`: Channels to crop
  - `dict_crop_rot_param::Dict`: For each time point, the cropping parameters to use for that time point.
     If the cropping parameters at a time point are not found, they will be stored in the dictionary, modifying it.
  - `save_MIP::Bool` (optional): Whether to save png files. Default `true`
