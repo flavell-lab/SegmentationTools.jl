@@ -13,7 +13,6 @@ include("centroid_visualization.jl")
 include("crop_worm.jl")
 
 export
-    instance_segmentation_output,
     volume,
     instance_segmentation,
     consolidate_labeled_img,
@@ -46,5 +45,5 @@ export
     crop_rotate!,
     uncrop_img_roi,
     uncrop_img_rois,
-    call_unet
+    call_unet,
 end # module
