@@ -1,6 +1,6 @@
 # SegmentationTools.jl Documentation
 
 ```@contents
-Pages = ["graphs.md", "openmind.md", "postprocessing.md", "visualization.md"]
+Pages = ["crop.md", "segment.md", "visualize.md", "extract.md", "train.md", "util.md"]
 ```
 
