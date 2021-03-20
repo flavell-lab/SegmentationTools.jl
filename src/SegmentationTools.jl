@@ -13,7 +13,6 @@ include("centroid_visualization.jl")
 include("crop_worm.jl")
 
 export
-    instance_segmentation_output,
     volume,
     instance_segmentation,
     consolidate_labeled_img,

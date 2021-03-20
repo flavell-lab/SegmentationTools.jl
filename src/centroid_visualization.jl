@@ -1,5 +1,5 @@
 """
-Converts `centroids` into an image mask of size `imsize`
+Given an image of size `imsize`, converts `centroids` into an image mask of that size.
 """
 function centroids_to_img(imsize, centroids)
     return map(x->Tuple(x) in centroids, CartesianIndices(imsize))

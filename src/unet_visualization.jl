@@ -67,7 +67,7 @@ Makes grid out of many smaller plots.
 
 - `plots`: List of things to be plotted. Each item must be something that could be input to the `plot` function.
 - `cols::Integer`: Number of columns in array of plots to be created
-- `size`: Size of resulting plot per row.
+- `plot_size`: Size of resulting plot per row.
 """
 function make_plot_grid(plots, cols::Integer, plot_size)
     if length(plots) < cols
@@ -149,8 +149,8 @@ using an interactive slider to toggle between z-planes of the 3D dataset.
 function display_predictions_3D(raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750), axis=3, display_accuracy::Bool=true, contrast=1)
     @manipulate for z=1:size(raw)[axis]
         i = [(dim == axis) ? z : Colon() for dim=1:3]
-        display_predictions_2D(getindex(raw, i[1], i[2], i[3]), (label == nothing ? nothing : getindex(label, i[1], i[2], i[3])),
-            (weight == nothing ? nothing : getindex(weight, i[1], i[2], i[3])), [getindex(predictions, i[1], i[2], i[3]) for predictions in predictions_array]; cols=cols, plot_size=plot_size, display_accuracy=display_accuracy, contrast=contrast)
+        display_predictions_2D(getindex(raw, i[1], i[2], i[3]), (isnothing(label) ? nothing : getindex(label, i[1], i[2], i[3])),
+            (isnothing(weight) ? nothing : getindex(weight, i[1], i[2], i[3])), [getindex(predictions, i[1], i[2], i[3]) for predictions in predictions_array]; cols=cols, plot_size=plot_size, display_accuracy=display_accuracy, contrast=contrast)
     end
 end
 
