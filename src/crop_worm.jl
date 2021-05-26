@@ -235,9 +235,7 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
                 dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
             end
             
-            if crop_z[1] <= 1 || crop_z[2] >= size(img)[3]
-                error("Worm out of focus")
-            elseif crop_z[2] - crop_z[1] > 65 # thickness/n_z of the worm
+            if crop_z[2] - crop_z[1] > 65 # thickness/n_z of the worm
                 error("Insufficient z-cropping")
             end
 
@@ -261,6 +259,11 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
                 write_MHD_spec(path_mhd, spacing_lat, spacing_axi,
                     size(img_crop)..., basename(path_raw))
                 save(path_png, clamp01nan.(maxprj(img_crop, dims=3) ./ 1000))
+            end
+
+            # still crop out-of-focus data but give error message
+            if crop_z[1] <= 1 || crop_z[2] >= size(img)[3]
+                error("Worm out of focus")
             end
         catch e_
             dict_error[t] = e_
