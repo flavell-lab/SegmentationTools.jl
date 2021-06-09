@@ -217,6 +217,7 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
     create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Any}()
+    focus_issues = []
     
     @showprogress for t = t_range
         try
@@ -263,7 +264,7 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
 
             # still crop out-of-focus data but give error message
             if crop_z[1] <= 1 || crop_z[2] >= size(img)[3]
-                error("Worm out of focus")
+                append!(focus_issues, t)
             end
         catch e_
             dict_error[t] = e_
@@ -273,8 +274,12 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
     if length(keys(dict_error)) != 0
         @warn "Worm could not be detected or cropped at some time points."
     end
+
+    if length(focus_issues) > 0
+        @warn "Worm potentially out of focus in $(length(focus_issues))/$(length(t_range)) time points"
+    end
     
-    return dict_error
+    return dict_error, focus_issues
 end
 
 """
