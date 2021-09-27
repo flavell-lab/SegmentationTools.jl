@@ -45,5 +45,7 @@ export
     crop_rotate!,
     uncrop_img_roi,
     uncrop_img_rois,
-    call_unet
+    call_unet,
+    get_neighbors,
+    get_neighbors_diagonal
 end # module
