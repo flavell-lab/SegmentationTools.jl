@@ -235,10 +235,6 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
                 dict_crop_rot_param[t]["θ"] = θ_
                 dict_crop_rot_param[t]["worm_centroid"] = worm_centroid
             end
-            
-            if crop_z[2] - crop_z[1] > 65 # thickness/n_z of the worm
-                error("Insufficient z-cropping")
-            end
 
             for ch = ch_list
                 bname = f_basename(t, ch)
