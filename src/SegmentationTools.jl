@@ -1,6 +1,6 @@
 module SegmentationTools
 
-using FlavellBase, ImageDataIO, HDF5, Interact, MHDIO, Distributions, StatsBase, LinearAlgebra, PyCall,
+using FlavellBase, ImageDataIO, UNet2D, HDF5, Interact, MHDIO, Distributions, StatsBase, LinearAlgebra, PyCall,
     ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation, WormFeatureDetector,
     ImageTransformations, CoordinateTransformations, StaticArrays, Interpolations, Rotations
 
@@ -13,6 +13,8 @@ include("centroid_visualization.jl")
 include("crop_worm.jl")
 
 export
+    find_head,
+    find_head_unet,
     volume,
     instance_segmentation,
     consolidate_labeled_img,
