@@ -165,61 +165,6 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
     return collect(map(x->convert(Float64, x), weights))
 end
 
-"""
-Scales an image down by using linear interpolation for the raw image, and bkg-gap priority interpoalation for the labels.
-
-# Arguments
-- `img`: image to scale
-- `scales`: array of factors to scale down (bin) by in each dimension. Must be positive. 
-
-# Optional keyword arguments
-
-- `dtype::String`: type of data - either "raw", "label", or "weight". Default raw.
-"""
-function resample_img(img, scales; dtype="raw")
-    s = size(img)
-    p = prod(scales)
-    new_idx = Tuple(map(x->Int64(x), s .÷ scales))
-    if dtype in ["raw", "label"]
-        new_img = zeros(UInt16, new_idx)
-    else
-        new_img = zeros(new_idx)
-    end
-    for c1 in CartesianIndices(new_idx)
-        prev_idx = (Tuple(c1) .- 1) .* scales .+ 1
-        idx = prev_idx .+ scales
-        min_idx = map(x->Int32(floor(x)), prev_idx)
-        max_idx = map(x->(x == floor(x)) ? Int32(x - 1) : Int32(floor(x)), idx)
-        if dtype == "label"
-            tot = [0.0,0.0,0.0,0.0]
-            for c2 in CartesianIndices(Tuple(collect((min_idx[i]:max_idx[i] for i=1:length(s)))))
-                tot[img[c2]+1] += prod([min(c2[j] + 1, idx[j]) - max(prev_idx[j], c2[j]) for j=1:length(s)])
-            end
-            tot_scaled = tot ./ p
-            if tot[4] >= 0.5 || tot_scaled[4] >= 0.5
-                new_img[c1] = 3
-            else
-                a = argmax(tot[2:4])
-                if tot[a+1] >= 1 || tot_scaled[a+1] >= 0.5
-                    new_img[c1] = a
-                else
-                    new_img[c1] = 0
-                end
-            end
-        else
-            tot = 0
-            for c2 in CartesianIndices(Tuple(collect((min_idx[i]:max_idx[i] for i=1:length(s)))))
-                tot += img[c2] * prod([min(c2[j] + 1, idx[j]) - max(prev_idx[j], c2[j]) for j=1:length(s)])
-            end
-            if dtype == "raw"
-                new_img[c1] = UInt16(round(tot / p))
-            elseif dtype == "weight"
-                new_img[c1] = tot / p
-            end
-        end
-    end
-    return new_img
-end
 
 """
 Decreases S/N ratio of an image by the given factor.

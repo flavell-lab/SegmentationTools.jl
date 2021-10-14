@@ -34,7 +34,6 @@ export
     instance_segment_concave,
     get_points,
     distance,
-    resample_img,
     compute_mean_iou,
     detect_incorrect_merges,
     watershed_threshold,
