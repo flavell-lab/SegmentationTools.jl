@@ -5,6 +5,7 @@ using FlavellBase, ImageDataIO, UNet2D, HDF5, Interact, MHDIO, Distributions, St
     ImageTransformations, CoordinateTransformations, StaticArrays, Interpolations, Rotations
 
 include("init.jl")
+include("find_head.jl")
 include("unet_visualization.jl")
 include("make_unet_input.jl")
 include("semantic_segmentation.jl")
