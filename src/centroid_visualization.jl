@@ -81,7 +81,7 @@ Can also plot raw data and semantic segmentation data for comparison.
 
 - `color_brightness`: minimum RGB value (out of 1) that an object will be plotted with
 """
-function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3)
+function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600))
     plot_imgs = []
     if !isnothing(raw)
         max_img = maximum(raw)
