@@ -41,12 +41,10 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
     watershed_thresholds = param["seg_threshold_watershed"]
     watershed_min_neuron_sizes = param["seg_watershed_min_neuron_sizes"]
     
-    dict_result = Dict{Int, Any}()
-    dict_error = Dict{Int, Exception}()
+    errors = Vector{Exception}(undef, param["max_t"])
     
-    @showprogress for t = t_range
+    Threads.@threads for t = t_range
         try
-            path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
             path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
             img_pred = load_predictions(path_pred)
             img_pred_thresh = img_pred .> threshold_unet
@@ -54,8 +52,6 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
             img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
                 thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
         
-            dict_result[t] = img_roi_watershed
-
             if save_signal || save_roi
                 path_mhd = joinpath(path_dir_mhd, f_basename(t, param["ch_marker"]) * ".mhd")
                 mhd = MHD(path_mhd)
@@ -89,11 +85,18 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
                     size(img_roi_watershed)[2], size(img_roi_watershed)[3], "$(t).raw")
             end
         catch e_
-            dict_error[t] = e_
+            errors[t] = e_
+        end
+    end
+
+    dict_error = Dict{Int, Exception}()
+    for t = t_range
+        if isassigned(errors, t)
+            dict_error[t] = errors[t]
         end
     end
     
-    dict_result, dict_error
+    return dict_error
 end
 
 """
