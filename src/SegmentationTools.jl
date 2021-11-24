@@ -2,7 +2,7 @@ module SegmentationTools
 
 using FlavellBase, ImageDataIO, UNet2D, HDF5, Interact, MHDIO, Distributions, StatsBase, LinearAlgebra, PyCall,
     ProgressMeter, FileIO, NRRD, DataStructures, Images, Plots, ImageSegmentation, WormFeatureDetector,
-    ImageTransformations, CoordinateTransformations, StaticArrays, Interpolations, Rotations
+    ImageTransformations, CoordinateTransformations, StaticArrays, Interpolations, Rotations, SegmentationStats
 
 include("init.jl")
 include("find_head.jl")
@@ -19,7 +19,6 @@ export
     volume,
     instance_segmentation,
     consolidate_labeled_img,
-    get_centroids,
     get_activity,
     create_weights,
     make_unet_input_h5,

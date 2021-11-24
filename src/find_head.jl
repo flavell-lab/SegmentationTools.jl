@@ -216,7 +216,7 @@ function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size)
         img_pred_thresh[img_pred_crop .<= param["head_threshold"]] .= 0
 
         try
-            centroids = get_centroids(img_pred_thresh)
+            centroids = get_centroids_round(img_pred_thresh)
             idx = 1
             if length(centroids) > 1
                 idx = findmax([sum(img_pred_crop[img_pred_thresh .== i]) for i=1:length(centroids)])[2]

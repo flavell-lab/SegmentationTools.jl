@@ -73,7 +73,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
                 imgs_roi_watershed[batch_idx] = instance_segmentation_threshold(imgs_roi[batch_idx], imgs_pred[batch_idx],
                     thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
                 activities[batch_idx] = Float64.(get_activity(imgs_roi_watershed[batch_idx], imgs[batch_idx]))
-                centroids[batch_idx] = Tuple{Float64, Float64, Float64}.(get_centroids(imgs_roi_watershed[batch_idx]))
+                centroids[batch_idx] = Tuple{Float64, Float64, Float64}.(get_centroids_round(imgs_roi_watershed[batch_idx]))
             catch e
                 errors[t] = e
             end
@@ -175,22 +175,6 @@ function consolidate_labeled_img(labeled_img, min_neuron_size)
         end
     end
     return map(x->(x in keys(label_dict) ? label_dict[x] : UInt16(0)), labeled_img)
-end
-
-"""
-Gets centroids from image ROI `img_roi`.
-"""
-function get_centroids(img_roi)
-    centroids = []
-    indices = CartesianIndices(img_roi)
-    for i=1:maximum(img_roi)
-        total = sum(img_roi .== i)
-        if total == 0
-            continue
-        end
-        push!(centroids, map(x->round(x), Tuple(sum((img_roi .== i) .* indices))./total))
-    end
-    return centroids
 end
 
 """
@@ -347,7 +331,7 @@ function detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
     bad_rois = Dict()
     for t in 1:length(thresholds)
         img_roi_t = instance_segmentation(predictions .> thresholds[t], min_neuron_size=neuron_sizes[t])
-        centroids = get_centroids(img_roi_t)
+        centroids = get_centroids_round(img_roi_t)
         for i=1:maximum(img_roi)
             points = get_points(img_roi, i)
             centroid_matches = []
