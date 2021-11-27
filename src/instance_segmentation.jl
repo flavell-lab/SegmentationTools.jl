@@ -231,7 +231,7 @@ end
 Returns all points from `img_roi` corresponding to region `roi`.
 """
 function get_points(img_roi, roi)
-    return [Tuple(x) for x in CartesianIndices(size(img_roi)) if img_roi[x] == roi]
+    return Tuple.(findall(img_roi .== roi))
 end
 
 """
