@@ -311,14 +311,14 @@ Makes UNet input files from all files in a directory. This function supports mak
 - `scale_bkg_gap::Bool` (optional): whether to upweight background-gap pixels for each neuron pixel they border. Default false.
     This parameter has no effect if `nrrd_path` is the empty string.
 """
-function make_unet_input_h5(path_nrrd::String, path_nrrd::Union{Nothing, String}, path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
-    metric::String="taxicab", scale_xy::Real=1, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
-    bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
-
-    make_label = !isnothing(path_nrrd)
+function make_unet_input_h5(path_nrrd_raw::String, path_nrrd_label::Union{Nothing, String},
+    path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors",
+    metric::String="taxicab", scale_xy::Real=1, scale_z::Real=1, weight_foreground::Real=6,
+    weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1],
+    SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
     
-    img_label = make_label ? collect(load(path_nrrd)) : nothing
-    img_raw = read_img(NRRD(path_nrrd))
+    img_label = isnothing(path_nrrd_label) ? nothing : read_img(NRRD(path_nrrd_label))
+    img_raw = read_img(NRRD(path_nrrd_raw))
     
     make_unet_input_h5(img_raw, img_label, path_h5, crop=crop, transpose=transpose,
         weight_strategy=weight_strategy, metric=metric, scale_xy=scale_xy, scale_z=scale_z,
