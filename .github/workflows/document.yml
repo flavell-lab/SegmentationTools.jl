@@ -23,6 +23,16 @@ jobs:
           token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
       - uses: actions/checkout@master
         with:
+          repository: flavell-lab/TotalVariation.jl
+          path: ./TotalVariation.jl
+          token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
+      - uses: actions/checkout@master
+        with:
+          repository: flavell-lab/SegmentationStats.jl
+          path: ./SegmentationStats.jl
+          token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
+      - uses: actions/checkout@master
+        with:
           repository: flavell-lab/GPUFilter.jl
           path: ./GPUFilter.jl
           token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
@@ -69,6 +79,8 @@ jobs:
           Pkg.add("PyPlot");
           Pkg.build("PyPlot");
           Pkg.develop(PackageSpec(path="./FlavellBase.jl"));
+          Pkg.develop(PackageSpec(path="./TotalVariation.jl"));
+          Pkg.develop(PackageSpec(path="./SegmentationStats.jl"));
           Pkg.develop(PackageSpec(path="./GPUFilter.jl"));
           Pkg.develop(PackageSpec(path="./NRRDIO.jl")); 
           Pkg.develop(PackageSpec(path="./FFTRegGPU.jl")); 
