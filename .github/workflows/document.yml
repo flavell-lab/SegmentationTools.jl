@@ -84,9 +84,9 @@ jobs:
           Pkg.add("PyPlot");
           Pkg.build("PyPlot");'
       - name: Setup python packages
-        run: ~/.julia/cona/3/bin/pip install torch==1.8.2+cu111 torchvision==0.9.2+cu111 torchaudio==0.8.2 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html;
+        run: ~/.julia/conda/3/bin/pip install torch==1.8.2+cu111 torchvision==0.9.2+cu111 torchaudio==0.8.2 -f https://download.pytorch.org/whl/lts/1.8/torch_lts.html;
           cd unet2d;
-          ~/.julia/cona/3/bin/pip install .
+          ~/.julia/conda/3/bin/pip install .
       - name: Install packages
         run: julia --project=docs/ -e 'using Pkg;
           Pkg.develop(PackageSpec(path="./FlavellBase.jl"));
