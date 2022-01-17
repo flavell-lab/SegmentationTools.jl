@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
         with:
-          version: '1.5.3'
+          version: '1.7.0'
       - uses: actions/checkout@master
         with:
           repository: flavell-lab/FlavellBase.jl
@@ -28,8 +28,8 @@ jobs:
           token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
       - uses: actions/checkout@master
         with:
-          repository: flavell-lab/MHDIO.jl
-          path: ./MHDIO.jl
+          repository: flavell-lab/NRRDIO.jl
+          path: ./NRRDIO.jl
           token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
       - uses: actions/checkout@master
         with:
@@ -40,6 +40,11 @@ jobs:
         with:
           repository: flavell-lab/ImageDataIO.jl
           path: ./ImageDataIO.jl
+          token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
+      - uses: actions/checkout@master
+        with:
+          repository: flavell-lab/UNet2D.jl
+          path: ./UNet2D.jl
           token: ${{ secrets.GOLDENRATIO1618_ACCESS_TOKEN }}
       - uses: actions/checkout@master
         with:
