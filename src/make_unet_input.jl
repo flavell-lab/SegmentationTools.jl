@@ -165,61 +165,6 @@ function create_weights(label; scale_xy::Real=0.36, scale_z::Real=1, metric::Str
     return collect(map(x->convert(Float64, x), weights))
 end
 
-"""
-Scales an image down by using linear interpolation for the raw image, and bkg-gap priority interpoalation for the labels.
-
-# Arguments
-- `img`: image to scale
-- `scales`: array of factors to scale down (bin) by in each dimension. Must be positive. 
-
-# Optional keyword arguments
-
-- `dtype::String`: type of data - either "raw", "label", or "weight". Default raw.
-"""
-function resample_img(img, scales; dtype="raw")
-    s = size(img)
-    p = prod(scales)
-    new_idx = Tuple(map(x->Int64(x), s .÷ scales))
-    if dtype in ["raw", "label"]
-        new_img = zeros(UInt16, new_idx)
-    else
-        new_img = zeros(new_idx)
-    end
-    for c1 in CartesianIndices(new_idx)
-        prev_idx = (Tuple(c1) .- 1) .* scales .+ 1
-        idx = prev_idx .+ scales
-        min_idx = map(x->Int32(floor(x)), prev_idx)
-        max_idx = map(x->(x == floor(x)) ? Int32(x - 1) : Int32(floor(x)), idx)
-        if dtype == "label"
-            tot = [0.0,0.0,0.0,0.0]
-            for c2 in CartesianIndices(Tuple(collect((min_idx[i]:max_idx[i] for i=1:length(s)))))
-                tot[img[c2]+1] += prod([min(c2[j] + 1, idx[j]) - max(prev_idx[j], c2[j]) for j=1:length(s)])
-            end
-            tot_scaled = tot ./ p
-            if tot[4] >= 0.5 || tot_scaled[4] >= 0.5
-                new_img[c1] = 3
-            else
-                a = argmax(tot[2:4])
-                if tot[a+1] >= 1 || tot_scaled[a+1] >= 0.5
-                    new_img[c1] = a
-                else
-                    new_img[c1] = 0
-                end
-            end
-        else
-            tot = 0
-            for c2 in CartesianIndices(Tuple(collect((min_idx[i]:max_idx[i] for i=1:length(s)))))
-                tot += img[c2] * prod([min(c2[j] + 1, idx[j]) - max(prev_idx[j], c2[j]) for j=1:length(s)])
-            end
-            if dtype == "raw"
-                new_img[c1] = UInt16(round(tot / p))
-            elseif dtype == "weight"
-                new_img[c1] = tot / p
-            end
-        end
-    end
-    return new_img
-end
 
 """
 Decreases S/N ratio of an image by the given factor.
@@ -339,7 +284,7 @@ end
 Makes UNet input files from all files in a directory. This function supports making files either for training or prediction.
 
 # Arguments
-- `path_mhd::String`: Path to raw data MHD files
+- `path_nrrd::String`: Path to raw data NRRD files
 - `path_nrrd::Union{Nothing, String}`: Path to NRRD label files. If nothing, labels and weights will not be generated.
 - `path_h5::String`: Path to HDF5 output files.
 - `crop` (optional, default `nothing`): `[crop_x, crop_y, crop_z]`, where every point with coordinates not in the given ranges is cropped out.
@@ -366,14 +311,14 @@ Makes UNet input files from all files in a directory. This function supports mak
 - `scale_bkg_gap::Bool` (optional): whether to upweight background-gap pixels for each neuron pixel they border. Default false.
     This parameter has no effect if `nrrd_path` is the empty string.
 """
-function make_unet_input_h5(path_mhd::String, path_nrrd::Union{Nothing, String}, path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors", 
-    metric::String="taxicab", scale_xy::Real=1, scale_z::Real=1, weight_foreground::Real=6, weight_bkg_gap::Real=10, boundary_weight=nothing,
-    bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
-
-    make_label = !isnothing(path_nrrd)
+function make_unet_input_h5(path_nrrd_raw::String, path_nrrd_label::Union{Nothing, String},
+    path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors",
+    metric::String="taxicab", scale_xy::Real=1, scale_z::Real=1, weight_foreground::Real=6,
+    weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1],
+    SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false)
     
-    img_label = make_label ? collect(load(path_nrrd)) : nothing
-    img_raw = read_img(MHD(path_mhd))
+    img_label = isnothing(path_nrrd_label) ? nothing : read_img(NRRD(path_nrrd_label))
+    img_raw = read_img(NRRD(path_nrrd_raw))
     
     make_unet_input_h5(img_raw, img_label, path_h5, crop=crop, transpose=transpose,
         weight_strategy=weight_strategy, metric=metric, scale_xy=scale_xy, scale_z=scale_z,
@@ -389,20 +334,20 @@ end
 Generatesn HDF5 file, to be input to the UNet, out of a raw image file and a label file. Assumes 3D data.
 
 # Arguments
- - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns MHD file names, including:
+ - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns NRRD file names, including:
     - `path_dir_unet_data`: Path to UNet input and output data
- - `path_dir_mhd::String`: Path to MHD files
+ - `path_dir_nrrd::String`: Path to NRRD files
  - `t_range`: Time points to watershed
  - `ch_marker::Int`: Marker channel
- - `f_basename::Function`: Function that returns the name of MHD files
+ - `f_basename::Function`: Function that returns the name of NRRD files
 """
-function make_unet_input_h5(param_path::Dict, path_dir_mhd::String, t_range, ch_marker::Int, f_basename::Function)
+function make_unet_input_h5(param_path::Dict, path_dir_nrrd::String, t_range, ch_marker::Int, f_basename::Function)
     
     path_dir_unet_data = param_path["path_dir_unet_data"]
     create_dir(path_dir_unet_data)
     
     @showprogress for t = t_range
-        path_mhd = joinpath(path_dir_mhd, f_basename(t, ch_marker) * ".mhd")
-        make_unet_input_h5(path_mhd, nothing, joinpath(path_dir_unet_data, "$(t).h5"))
+        path_nrrd = joinpath(path_dir_nrrd, f_basename(t, ch_marker) * ".nrrd")
+        make_unet_input_h5(path_nrrd, nothing, joinpath(path_dir_unet_data, "$(t).h5"))
     end
 end

@@ -9,20 +9,20 @@ Returns dictionary of results and a list of error frames (most likely because th
    - `seg_min_neuron_size`: Minimum neuron size, in voxels
    - `seg_threshold_watershed`: Confidence thresholds of the UNet output for a pixel to be counted as a neuron in each watershed step
    - `seg_watershed_min_neuron_sizes`: Minimum neuron sizes, in voxels, in each watershed step
- - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns MHD file names, including:
+ - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns NRRD file names, including:
     - `path_dir_unet_data`: Path to UNet output data (input to the watershed algorithm)
     - `path_dir_roi`: Path to non-watershed ROI ouptut data
     - `path_dir_roi_watershed`: Path to watershed ROI output data
     - `path_dir_marker_signal`: Path to marker channel signal output data
     - `path_dir_centroid`: Path to centroid output data
- - `path_dir_mhd::String`: Path to MHD files
+ - `path_dir_nrrd::String`: Path to NRRD files
  - `t_range`: Time points to watershed
- - `f_basename::Function`: Function that returns the name of MHD files
+ - `f_basename::Function`: Function that returns the name of NRRD files
  - `save_centroid::Bool` (optional): Whether to save centroids. Default `false`
  - `save_signal::Bool` (optional): Whether to save marker signal. Default `false`
  - `save_roi::Bool` (optional): Whether to save ROIs before watershedding. Default `false`
 """
-function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_mhd::String, t_range,
+function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir_nrrd::String, t_range,
         f_basename::Function; save_centroid::Bool=false, save_signal::Bool=false, save_roi::Bool=false)
 
     path_dir_unet_data = param_path["path_dir_unet_data"]    
@@ -32,7 +32,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
     path_dir_centroid = param_path["path_dir_centroid"]
     threshold_unet = param["seg_threshold_unet"]
     min_neuron_size = param["seg_min_neuron_size"]
-    
+
     save_centroid && create_dir(path_dir_centroid)
     save_signal && create_dir(path_dir_activity)
     save_roi && create_dir(path_dir_roi_watershed)
@@ -40,60 +40,83 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
 
     watershed_thresholds = param["seg_threshold_watershed"]
     watershed_min_neuron_sizes = param["seg_watershed_min_neuron_sizes"]
-    
-    dict_result = Dict{Int, Any}()
-    dict_error = Dict{Int, Exception}()
-    
-    @showprogress for t = t_range
-        try
-            path_roi_mhd = joinpath(path_dir_roi, "$(t).mhd")
-            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
-            img_pred = load_predictions(path_pred)
-            img_pred_thresh = img_pred .> threshold_unet
-            img_roi = instance_segmentation(img_pred_thresh, min_neuron_size=min_neuron_size)
-            img_roi_watershed = instance_segmentation_threshold(img_roi, img_pred,
-                thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
-        
-            dict_result[t] = img_roi_watershed
 
+    errors = Vector{Exception}(undef, param["max_t"])
+
+    batch_size = Threads.nthreads() * param["instance_seg_num_batches"]
+
+    @showprogress for batch = 1:Int(ceil(length(t_range) / batch_size))
+        imgs = Vector{Array{UInt16, 3}}(undef, batch_size)
+        imgs_pred = Vector{Array{Float32, 3}}(undef, batch_size)
+        imgs_pred_thresh = Vector{BitArray{3}}(undef, batch_size)
+        imgs_roi = Vector{Array{Int16, 3}}(undef, batch_size)
+        imgs_roi_watershed = Vector{Array{Int16, 3}}(undef, batch_size)
+        activities = Vector{Vector{Float64}}(undef, batch_size)
+        centroids = Vector{Vector{Tuple{Float64, Float64, Float64}}}(undef, batch_size)
+        
+        batch_idx_rng = 1:min(batch_size, length(t_range) - (batch - 1) * batch_size)
+        for batch_idx = batch_idx_rng
+            t = t_range[(batch - 1) * batch_size + batch_idx]
+            path_pred = joinpath(path_dir_unet_data, "$(t)_predictions.h5")
+            imgs_pred[batch_idx] = load_predictions(path_pred)
+            imgs_pred_thresh[batch_idx] = imgs_pred[batch_idx] .> threshold_unet
             if save_signal || save_roi
-                path_mhd = joinpath(path_dir_mhd, f_basename(t, param["ch_marker"]) * ".mhd")
-                mhd = MHD(path_mhd)
+                path_nrrd = joinpath(path_dir_nrrd, f_basename(t, param["ch_marker"]) * ".nrrd")
+                nrrd = NRRD(path_nrrd)
+                imgs[batch_idx] = read_img(NRRD(path_nrrd))
             end
-            
+        end
+        Threads.@threads for batch_idx = batch_idx_rng
+            t = t_range[(batch - 1) * batch_size + batch_idx]
+            try
+                imgs_roi[batch_idx] = instance_segmentation(imgs_pred_thresh[batch_idx], min_neuron_size=min_neuron_size)
+                imgs_roi_watershed[batch_idx] = instance_segmentation_threshold(imgs_roi[batch_idx], imgs_pred[batch_idx],
+                    thresholds=watershed_thresholds, neuron_sizes=watershed_min_neuron_sizes)
+                activities[batch_idx] = Float64.(get_activity(imgs_roi_watershed[batch_idx], imgs[batch_idx]))
+                centroids[batch_idx] = Tuple{Float64, Float64, Float64}.(get_centroids_round(imgs_roi_watershed[batch_idx]))
+            catch e
+                errors[t] = e
+            end
+        end
+        for batch_idx = batch_idx_rng
+            t = t_range[(batch - 1) * batch_size + batch_idx]
+            if isassigned(errors, t)
+                continue
+            end
+            path_nrrd = joinpath(path_dir_nrrd, f_basename(t, param["ch_marker"]) * ".nrrd")
+            nrrd = NRRD(path_nrrd)
             if save_centroid
-                centroids = get_centroids(img_roi_watershed)
                 path_centroid = joinpath(path_dir_centroid, "$(t).txt")
-                write_centroids(centroids, path_centroid)
+                write_centroids(centroids[batch_idx], path_centroid)
             end
-            
+
             if save_signal
-                img = read_img(MHD(path_mhd))
-                activity = get_activity(img_roi_watershed, img)
                 path_activity = joinpath(path_dir_activity, "$(t).txt")
-                write_activity(activity, path_activity)
+                write_activity(activities[batch_idx], path_activity)
             end
 
             if save_roi
                 # save image before watershedding
-                path_roi = joinpath(path_dir_roi, "$(t)")
-                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
-                write_raw(path_roi * ".raw", map(x->UInt16(x), img_roi))
-                write_MHD_spec(path_roi * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
-                    size(img_roi)[2], size(img_roi)[3], "$(t).raw")
+                path_roi = joinpath(path_dir_roi, "$(t).nrrd")
+                write_nrrd(path_roi, map(x->UInt16(x), imgs_roi[batch_idx]),
+                    spacing(nrrd))
+                
                 # save image after watershedding
-                path_roi_watershed = joinpath(path_dir_roi_watershed, "$(t)")
-                spacing = split(mhd.mhd_spec_dict["ElementSpacing"], " ")
-                write_raw(path_roi_watershed * ".raw", map(x->UInt16(x), img_roi_watershed))
-                write_MHD_spec(path_roi_watershed * ".mhd", spacing[1], spacing[end], size(img_roi)[1],
-                    size(img_roi_watershed)[2], size(img_roi_watershed)[3], "$(t).raw")
+                path_roi_watershed = joinpath(path_dir_roi_watershed, "$(t).nrrd")
+                write_nrrd(path_roi_watershed, map(x->UInt16(x),
+                        imgs_roi_watershed[batch_idx]), spacing(nrrd))
             end
-        catch e_
-            dict_error[t] = e_
         end
     end
-    
-    dict_result, dict_error
+
+    dict_error = Dict{Int, Exception}()
+    for t = t_range
+        if isassigned(errors, t)
+            dict_error[t] = errors[t]
+        end
+    end
+
+    return dict_error
 end
 
 """
@@ -152,22 +175,6 @@ function consolidate_labeled_img(labeled_img, min_neuron_size)
 end
 
 """
-Gets centroids from image ROI `img_roi`.
-"""
-function get_centroids(img_roi)
-    centroids = []
-    indices = CartesianIndices(img_roi)
-    for i=1:maximum(img_roi)
-        total = sum(img_roi .== i)
-        if total == 0
-            continue
-        end
-        push!(centroids, map(x->round(x), Tuple(sum((img_roi .== i) .* indices))./total))
-    end
-    return centroids
-end
-
-"""
 Returns the average activity of all ROIs in an image.
 
 # Arguments
@@ -221,7 +228,7 @@ end
 Returns all points from `img_roi` corresponding to region `roi`.
 """
 function get_points(img_roi, roi)
-    return [Tuple(x) for x in CartesianIndices(size(img_roi)) if img_roi[x] == roi]
+    return Tuple.(findall(img_roi .== roi))
 end
 
 """
@@ -321,7 +328,7 @@ function detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
     bad_rois = Dict()
     for t in 1:length(thresholds)
         img_roi_t = instance_segmentation(predictions .> thresholds[t], min_neuron_size=neuron_sizes[t])
-        centroids = get_centroids(img_roi_t)
+        centroids = get_centroids_round(img_roi_t)
         for i=1:maximum(img_roi)
             points = get_points(img_roi, i)
             centroid_matches = []

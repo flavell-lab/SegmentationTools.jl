@@ -8,8 +8,9 @@ Makes a local copy of a parameter file, modifies directories in that parameter f
     - `path_unet_pred`: Path to the `predict.py` file in `pytorch-3d-unet` installation
     - `path_unet_param`: Path to UNet prediction parameter file
     - `path_unet_py_env`: Path to a script that initializes the relevant environment variables for the UNet to run
+- `gpu` (optional, default 0): Which GPU to use.
 """
-function call_unet(param_path::Dict)
+function call_unet(param_path::Dict; gpu=0)
     path_root_process = param_path["path_root_process"]
     path_sh = joinpath(path_root_process, "run_unet.sh")
     path_log = joinpath(path_root_process, "unet.log")
@@ -29,7 +30,7 @@ function call_unet(param_path::Dict)
     
     str_cmd = "#!/bin/bash\n" *
         "source $(path_unet_py_env)\n" *
-        "python $(path_unet_pred) --config $(path_unet_param_new) > $(path_log)"
+        "CUDA_VISIBLE_DEVICES=$(gpu) python $(path_unet_pred) --config $(path_unet_param_new) > $(path_log)"
     open(path_sh, "w") do f
         write(f, str_cmd)
     end

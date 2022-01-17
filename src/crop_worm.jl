@@ -131,13 +131,10 @@ function uncrop_img_rois(param_path::Dict, param::Dict, crop_params::Dict, img_s
         roi_cropped_key::String="path_dir_roi_watershed", roi_uncropped_key::String="path_dir_roi_watershed_uncropped")
     create_dir(param_path[roi_uncropped_key])
     @showprogress for t in param["t_range"]
-        img_roi_mhd = MHD(joinpath(param_path[roi_cropped_key], "$(t).mhd"))
-        img_roi = read_img(img_roi_mhd)
-        spacing = split(img_roi_mhd.mhd_spec_dict["ElementSpacing"], " ")
+        img_roi_nrrd = NRRD(joinpath(param_path[roi_cropped_key], "$(t).nrrd"))
+        img_roi = read_img(img_roi_nrrd)
         img_roi_uncropped = uncrop_img_roi(img_roi, crop_params[t], img_size)
-        write_raw(joinpath(param_path[roi_uncropped_key], "$(t).raw"), img_roi_uncropped)
-        write_MHD_spec(joinpath(param_path[roi_uncropped_key], "$(t).mhd"), spacing[1], spacing[end], img_size[1],
-            img_size[2], img_size[3], "$(t).raw")
+        write_nrrd(joinpath(param_path[roi_uncropped_key], "$(t).nrrd"), img_roi_uncropped, spacing(img_roi_nrrd))
     end
 end
 
@@ -212,16 +209,16 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
 end
 
 
-function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_MIP_crop::String, t_range, ch_list, dict_crop_rot_param::Dict,
+function crop_rotate!(path_dir_nrrd::String, path_dir_nrrd_crop::String, path_dir_MIP_crop::String, t_range, ch_list, dict_crop_rot_param::Dict,
         threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
-    create_dir.([path_dir_mhd_crop, path_dir_MIP_crop])
+    create_dir.([path_dir_nrrd_crop, path_dir_MIP_crop])
 
     dict_error = Dict{Int, Any}()
     focus_issues = []
     
     @showprogress for t = t_range
         try
-            img = read_img(MHD(joinpath(path_dir_mhd, f_basename(t, ch_list[1]) * ".mhd")))
+            img = read_img(NRRD(joinpath(path_dir_nrrd, f_basename(t, ch_list[1]) * ".nrrd")))
             if haskey(dict_crop_rot_param, t)
                 crop_x, crop_y, crop_z = dict_crop_rot_param[t]["crop"]
                 θ_ = dict_crop_rot_param[t]["θ"]
@@ -238,7 +235,7 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
 
             for ch = ch_list
                 bname = f_basename(t, ch)
-                img = read_img(MHD(joinpath(path_dir_mhd, bname * ".mhd")))
+                img = read_img(NRRD(joinpath(path_dir_nrrd, bname * ".nrrd")))
                 img_crop, cx, cy, cz = crop_rotate(img, crop_x, crop_y, crop_z, θ_, worm_centroid)
 
                 # these parameters are not dependent on channel
@@ -247,14 +244,11 @@ function crop_rotate!(path_dir_mhd::String, path_dir_mhd_crop::String, path_dir_
                 end
 
 
-                path_base = joinpath(path_dir_mhd_crop, bname)
-                path_raw = path_base *".raw"
-                path_mhd = path_base *".mhd"
+                path_base = joinpath(path_dir_nrrd_crop, bname)
+                path_nrrd = path_base *".nrrd"
                 path_png = joinpath(path_dir_MIP_crop, bname *".png")
-
-                write_raw(path_raw, img_crop)
-                write_MHD_spec(path_mhd, spacing_lat, spacing_axi,
-                    size(img_crop)..., basename(path_raw))
+                
+                write_nrrd(path_nrrd, img_crop, (spacing_lat, spacing_lat, spacing_axi))
                 save(path_png, clamp01nan.(maxprj(img_crop, dims=3) ./ 1000))
             end
 
@@ -283,7 +277,7 @@ Crops and rotates a set of images.
 
 # Arguments
 
- - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns MHD file names.
+ - `param_path::Dict`: Dictionary containing paths to directories and a `get_basename` function that returns NRRD file names.
  - `param::Dict`: Dictionary containing parameters, including:
     - `crop_threshold_intensity`: minimum number of standard deviations above the mean that a pixel must be for it to be categorized as part of a feature
     - `crop_threshold_size`: minimum size of a feature for it to be categorized as part of the worm
@@ -294,14 +288,14 @@ Crops and rotates a set of images.
  - `dict_crop_rot_param::Dict`: For each time point, the cropping parameters to use for that time point.
     If the cropping parameters at a time point are not found, they will be stored in the dictionary, modifying it.
  - `save_MIP::Bool` (optional): Whether to save png files. Default `true`
- - `mhd_dir_key::String` (optional): Key in `param_path` to directory to input MHD files. Default `path_dir_mhd_shearcorrect`
- - `mhd_crop_dir_key::String` (optional): Key in `param_path` to directory to output MHD files. Default `path_dir_mhd_crop`
+ - `nrrd_dir_key::String` (optional): Key in `param_path` to directory to input NRRD files. Default `path_dir_nrrd_shearcorrect`
+ - `nrrd_crop_dir_key::String` (optional): Key in `param_path` to directory to output NRRD files. Default `path_dir_nrrd_crop`
  - `mip_crop_dir_key::String` (optional): Key in `param_path` to directory to output MIP files. Default `path_dir_MIP_crop`
 """
 function crop_rotate!(param_path::Dict, param::Dict, t_range, ch_list, dict_crop_rot_param::Dict; save_MIP::Bool=true,
-        mhd_dir_key::String="path_dir_mhd_shearcorrect", mhd_crop_dir_key::String="path_dir_mhd_crop", mip_crop_dir_key::String="path_dir_MIP_crop")
-    path_dir_mhd = param_path[mhd_dir_key]
-    path_dir_mhd_crop = param_path[mhd_crop_dir_key]
+        nrrd_dir_key::String="path_dir_nrrd_shearcorrect", nrrd_crop_dir_key::String="path_dir_nrrd_crop", mip_crop_dir_key::String="path_dir_MIP_crop")
+    path_dir_nrrd = param_path[nrrd_dir_key]
+    path_dir_nrrd_crop = param_path[nrrd_crop_dir_key]
     path_dir_MIP_crop = param_path[mip_crop_dir_key]
     threshold_size = param["crop_threshold_size"]
     threshold_intensity = param["crop_threshold_intensity"]
@@ -309,6 +303,6 @@ function crop_rotate!(param_path::Dict, param::Dict, t_range, ch_list, dict_crop
     spacing_lat = param["spacing_lat"]
     f_basename = param_path["get_basename"]
 
-    crop_rotate!(path_dir_mhd, path_dir_mhd_crop, path_dir_MIP_crop, t_range, ch_list, dict_crop_rot_param,
+    crop_rotate!(path_dir_nrrd, path_dir_nrrd_crop, path_dir_MIP_crop, t_range, ch_list, dict_crop_rot_param,
         threshold_size, threshold_intensity, spacing_axi, spacing_lat, f_basename, save_MIP)
 end
