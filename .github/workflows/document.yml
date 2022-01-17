@@ -70,9 +70,10 @@ jobs:
           Pkg.build("PyPlot");
           Pkg.develop(PackageSpec(path="./FlavellBase.jl"));
           Pkg.develop(PackageSpec(path="./GPUFilter.jl"));
-          Pkg.develop(PackageSpec(path="./MHDIO.jl")); 
+          Pkg.develop(PackageSpec(path="./NRRDIO.jl")); 
           Pkg.develop(PackageSpec(path="./FFTRegGPU.jl")); 
           Pkg.develop(PackageSpec(path="./ImageDataIO.jl")); 
+          Pkg.develop(PackageSpec(path="./UNet2D.jl"));
           Pkg.develop(PackageSpec(path="./WormCurveFinder.jl")); 
           Pkg.develop(PackageSpec(path="./Clustering.jl")); 
           Pkg.develop(PackageSpec(path="./WormFeatureDetector.jl")); 
