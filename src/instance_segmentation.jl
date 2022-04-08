@@ -66,7 +66,7 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
                 imgs[batch_idx] = read_img(NRRD(path_nrrd))
             end
         end
-        Threads.@threads for batch_idx = batch_idx_rng
+        for batch_idx = batch_idx_rng
             t = t_range[(batch - 1) * batch_size + batch_idx]
             try
                 imgs_roi[batch_idx] = instance_segmentation(imgs_pred_thresh[batch_idx], min_neuron_size=min_neuron_size)
