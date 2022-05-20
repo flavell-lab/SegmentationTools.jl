@@ -30,6 +30,7 @@ function call_unet(param_path::Dict; gpu=0)
     
     str_cmd = "#!/bin/bash\n" *
         "source $(path_unet_py_env)\n" *
+        "export LD_LIBRARY_PATH=/home/$(ENV["USER"])/.julia/conda/3/lib\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\n" *
         "CUDA_VISIBLE_DEVICES=$(gpu) python $(path_unet_pred) --config $(path_unet_param_new) > $(path_log)"
     open(path_sh, "w") do f
         write(f, str_cmd)
