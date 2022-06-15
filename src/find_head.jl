@@ -192,8 +192,9 @@ Automatically crops the images to 1:322,1:210, downsamples them by 2x, and takes
 - `model`: UNet model
 - `img_size`: Raw image size.
 - `nrrd_dir` (optional, default `path_dir_nrrd_shearcorrect`): Path to NRRD files.
+- `crop` (optional, default `true`): Whether to crop the head position.
 """
-function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect", uncrop=true)
+function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect", crop=true)
     head_pos = Dict()
     head_errs = Dict()
     @showprogress for t in param["t_range"]
