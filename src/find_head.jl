@@ -213,7 +213,7 @@ function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size;
         θ = dict_param_crop_rot[t]["θ"]
         worm_centroid = dict_param_crop_rot[t]["worm_centroid"]
 
-        if uncrop
+        if crop
             img_pred_crop = maxprj(crop_rotate(img_pred_reshape, crop_x, crop_y, crop_z,
                     θ, worm_centroid)[1], dims=3)
         else
