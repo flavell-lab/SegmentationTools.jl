@@ -193,7 +193,7 @@ Automatically crops the images to 1:322,1:210, downsamples them by 2x, and takes
 - `img_size`: Raw image size.
 - `nrrd_dir` (optional, default `path_dir_nrrd_shearcorrect`): Path to NRRD files.
 """
-function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect")
+function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect", uncrop=true)
     head_pos = Dict()
     head_errs = Dict()
     @showprogress for t in param["t_range"]
@@ -212,8 +212,12 @@ function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size;
         θ = dict_param_crop_rot[t]["θ"]
         worm_centroid = dict_param_crop_rot[t]["worm_centroid"]
 
-        img_pred_crop = maxprj(crop_rotate(img_pred_reshape, crop_x, crop_y, crop_z,
-                θ, worm_centroid)[1], dims=3)
+        if uncrop
+            img_pred_crop = maxprj(crop_rotate(img_pred_reshape, crop_x, crop_y, crop_z,
+                    θ, worm_centroid)[1], dims=3)
+        else
+            img_pred_crop = maxprj(img_pred_reshape, dims=3)
+        end
         img_pred_thresh = instance_segmentation(img_pred_crop .> param["head_threshold"],
             min_neuron_size=0)
         img_pred_thresh[img_pred_crop .<= param["head_threshold"]] .= 0
