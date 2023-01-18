@@ -191,12 +191,14 @@ Automatically crops the images to 1:322,1:210, downsamples them by 2x, and takes
 - `dict_param_crop_rot`: Dictionary of cropping parameters
 - `model`: UNet model
 - `img_size`: Raw image size.
+- `nrrd_dir` (optional, default `path_dir_nrrd_shearcorrect`): Path to NRRD files.
+- `crop` (optional, default `true`): Whether to crop the head position.
 """
-function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size)
+function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect", crop=true)
     head_pos = Dict()
     head_errs = Dict()
     @showprogress for t in param["t_range"]
-        path_nrrd = joinpath(param_path["path_dir_nrrd_shearcorrect"],
+        path_nrrd = joinpath(param_path[nrrd_dir],
             param_path["get_basename"](t,2) * ".nrrd")
         img = maxprj(read_img(NRRD(path_nrrd)), dims=3)
         img_raw = UNet2D.standardize(Float32.(resample_img(img[1:322,1:210], [2,2])))
@@ -211,8 +213,12 @@ function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size)
         θ = dict_param_crop_rot[t]["θ"]
         worm_centroid = dict_param_crop_rot[t]["worm_centroid"]
 
-        img_pred_crop = maxprj(crop_rotate(img_pred_reshape, crop_x, crop_y, crop_z,
-                θ, worm_centroid)[1], dims=3)
+        if crop
+            img_pred_crop = maxprj(crop_rotate(img_pred_reshape, crop_x, crop_y, crop_z,
+                    θ, worm_centroid)[1], dims=3)
+        else
+            img_pred_crop = maxprj(img_pred_reshape, dims=3)
+        end
         img_pred_thresh = instance_segmentation(img_pred_crop .> param["head_threshold"],
             min_neuron_size=0)
         img_pred_thresh[img_pred_crop .<= param["head_threshold"]] .= 0
