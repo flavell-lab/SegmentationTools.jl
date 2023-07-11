@@ -37,6 +37,8 @@ function in_conv_hull(point, centroids, max_d::Real)
 end
 
 """
+    remove_outlier_neurons(centroids, max_d::Real, threshold::Integer)
+
 Removes neurons from `centroids` in a radius `max_d::Real` around them if there are less than `threshold::Integer` neurons.
 """
 function remove_outlier_neurons(centroids, max_d::Real, threshold::Integer)
@@ -44,6 +46,8 @@ function remove_outlier_neurons(centroids, max_d::Real, threshold::Integer)
 end
     
 """
+    local_conv_hull(centroids, max_d::Real, imsize, threshold::Integer)
+
 Computes local convex hull (2D), removing outlier neurons first.
 # Arguments
 - `centroids`: the locations of the neuron centroids
@@ -58,6 +62,8 @@ function local_conv_hull(centroids, max_d::Real, imsize, threshold::Integer)
 end
 
 """ 
+    is_in_focus(centroids, imsize; max_d::Real=50, threshold::Integer=2, z_cutoff::Integer=7)
+
 Detects whether the current frame is in focus, and also outputs z-cropping parameters.
 # Arguments
 - `centroids`: the locations of the neuron centroids
@@ -82,6 +88,11 @@ function is_in_focus(centroids, imsize; max_d::Real=50, threshold::Integer=2, z_
 end
 
 """
+    find_head(
+        centroids, imsize; tf=[10,10,30], max_d=[30,50,50], hd_threshold::Integer=100, 
+        vc_threshold::Integer=300, num_centroids_threshold::Integer=90, edge_threshold::Integer=5, manual_override=false
+    )
+
 Finds the tip of the nose of the worm in each time point, and warns of bad time points.
 Uses a series of blob-approximations of the worm with different sensitivities, by using local convex hull.
 The convex hulls should be set up in increasing order (so the last convex hull is the most generous).
@@ -180,6 +191,8 @@ function find_head(centroids, imsize; tf=[10,10,30], max_d=[30,50,50], hd_thresh
 end
 
 """
+    find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect", crop=true)
+
 Finds the head using the head-detection UNet.
 Automatically crops the images to 1:322,1:210, downsamples them by 2x, and takes a maximum-intensity projection.
 
