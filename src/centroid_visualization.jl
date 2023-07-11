@@ -1,4 +1,6 @@
 """
+    centroids_to_img(imsize, centroids)
+
 Given an image of size `imsize`, converts `centroids` into an image mask of that size.
 """
 function centroids_to_img(imsize, centroids)
@@ -6,6 +8,11 @@ function centroids_to_img(imsize, centroids)
 end
 
 """
+    view_roi_3D(
+        raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600), axis=3,
+        raw_contrast=1, labeled_neurons=[], label_colors=[], neuron_color=nothing, overlay_intensity=0
+    )
+
 Plots instance segmentation image `img_roi`, where each object is given a different color.
 Can also plot raw data and semantic segmentation data for comparison.
 
@@ -68,6 +75,8 @@ end
 
 
 """
+    view_roi_2D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600))
+
 Plots instance segmentation image `img_roi`, where each object is given a different color.
 Can also plot raw data and semantic segmentation data for comparison.
 
@@ -80,6 +89,7 @@ Can also plot raw data and semantic segmentation data for comparison.
 # Optional keyword arguments
 
 - `color_brightness`: minimum RGB value (out of 1) that an object will be plotted with
+- `plot_size`: size of the plot
 """
 function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(600,600))
     plot_imgs = []
@@ -98,6 +108,8 @@ function view_roi_2D(raw, predicted, img_roi; color_brightness=0.3, plot_size=(6
 end
 
 """
+    view_centroids_3D(img, centroids)
+
 Displays the centroids of an image.
 
 # Arguments:
@@ -111,6 +123,8 @@ function view_centroids_3D(img, centroids)
 end
 
 """
+    view_centroids_2D(img, centroids)
+
 Displays the centroids of an image.
 
 # Arguments:

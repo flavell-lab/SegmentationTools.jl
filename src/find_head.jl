@@ -1,4 +1,6 @@
 """
+    in_conv_hull(point, centroids, max_d::Real)
+
 Computes whether a point is in the local convex hull of a collection of 2D points.
 
 # Arguments:

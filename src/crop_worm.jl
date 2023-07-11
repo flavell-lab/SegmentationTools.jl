@@ -1,4 +1,9 @@
 """
+    crop_rotate(
+        img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="median",
+        degree=Linear(), dtype=Int16, crop_pad=[5,5,5], min_crop_size=[210,96,51]
+    )
+
 Rotates and then crops an image, optionally along with its head and centroid locations.
 
 # Arguments
@@ -77,6 +82,8 @@ function crop_rotate(img, crop_x, crop_y, crop_z, theta, worm_centroid; fill="me
 end
 
 """
+    uncrop_img_roi(img_roi, crop_params, img_size; degree=Constant(), dtype=Int16)
+
 Uncrops an ROI image.
 
 # Arguments
@@ -117,6 +124,11 @@ function uncrop_img_roi(img_roi, crop_params, img_size; degree=Constant(), dtype
 end
 
 """
+    uncrop_img_rois(
+        param_path::Dict, param::Dict, crop_params::Dict, img_size;
+        roi_cropped_key::String="path_dir_roi_watershed", roi_uncropped_key::String="path_dir_roi_watershed_uncropped"
+    )
+
 Uncrops all ROI images.
 
 # Arguments
@@ -138,7 +150,11 @@ function uncrop_img_rois(param_path::Dict, param::Dict, crop_params::Dict, img_s
     end
 end
 
-""" Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`. """
+"""
+    increase_crop_size!(crop, min_ind, max_ind, crop_size)
+
+Increases crop size of a `crop`. Requires the min amd max indices of the image `min_ind` and `max_ind`, and the desired minimum crop size `crop_size`.
+"""
 function increase_crop_size!(crop, min_ind, max_ind, crop_size)
     # crop size is larger than image size
     if crop_size > max_ind - min_ind + 1
@@ -159,6 +175,8 @@ function increase_crop_size!(crop, min_ind, max_ind, crop_size)
 end
 
 """
+    get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size::Int=10)
+
 Generates cropping and rotation parameters from a frame by detecting the worm's location with thresholding and noise removal.
 The cropping parameters are designed to remove the maximum fraction of non-worm pixels.
 
@@ -208,7 +226,35 @@ function get_crop_rotate_param(img; threshold_intensity::Real=3, threshold_size:
     return (crop_x, crop_y, crop_z, theta, worm_centroid)
 end
 
+"""
+    crop_rotate!(
+        path_dir_nrrd::String, path_dir_nrrd_crop::String, path_dir_MIP_crop::String, t_range, 
+        ch_list, dict_crop_rot_param::Dict, threshold_size::Int, threshold_intensity::AbstractFloat, 
+        spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool
+    )
 
+Generates cropped and rotated images from a set of input images.
+
+# Arguments
+- `path_dir_nrrd`: Path to the directory containing the input images.
+- `path_dir_nrrd_crop`: Path to the directory where the cropped images will be saved.
+- `path_dir_MIP_crop`: Path to the directory where the maximum intensity projection (MIP) images will be saved.
+- `t_range`: Range of time points to process.
+- `ch_list`: List of channels to process.
+- `dict_crop_rot_param`: Dictionary containing the cropping and rotation parameters for each time point.
+- `threshold_size`: Number of adjacent pixels that must meet the threshold to be counted.
+- `threshold_intensity`: Number of standard deviations above mean for a pixel to be considered part of the worm.
+- `spacing_axi`: Axial spacing of the input images.
+- `spacing_lat`: Lateral spacing of the input images.
+- `f_basename`: Function that returns the base name of the input image file.
+- `save_MIP`: Boolean indicating whether to save the MIP images.
+
+# Output
+- Cropped and rotated images are saved in `path_dir_nrrd_crop`.
+- Maximum intensity projection (MIP) images are saved in `path_dir_MIP_crop`.
+- In-place modification of the `dict_crop_rot_param` dictionary with the cropping and rotation parameters for each time point.
+- Returns a tuple containing errors and time points where the worm might have been out of focus.
+"""
 function crop_rotate!(path_dir_nrrd::String, path_dir_nrrd_crop::String, path_dir_MIP_crop::String, t_range, ch_list, dict_crop_rot_param::Dict,
         threshold_size::Int, threshold_intensity::AbstractFloat, spacing_axi::AbstractFloat, spacing_lat::AbstractFloat, f_basename::Function, save_MIP::Bool)
     create_dir.([path_dir_nrrd_crop, path_dir_MIP_crop])
@@ -273,6 +319,12 @@ function crop_rotate!(path_dir_nrrd::String, path_dir_nrrd_crop::String, path_di
 end
 
 """
+    crop_rotate!(
+        param_path::Dict, param::Dict, t_range, ch_list, dict_crop_rot_param::Dict; save_MIP::Bool=true,   
+        nrrd_dir_key::String="path_dir_nrrd_shearcorrect", 
+        nrrd_crop_dir_key::String="path_dir_nrrd_crop", mip_crop_dir_key::String="path_dir_MIP_crop"
+    )
+
 Crops and rotates a set of images.
 
 # Arguments

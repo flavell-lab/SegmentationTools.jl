@@ -281,11 +281,19 @@ function make_unet_input_h5(img_raw::Array, img_label::Union{Nothing,Array}, pat
 end
 
 """
+    make_unet_input_h5(
+        path_nrrd_raw::String, path_nrrd_label::Union{Nothing, String},
+        path_h5::String; crop=nothing, transpose::Bool=false, weight_strategy::String="neighbors",
+        metric::String="taxicab", scale_xy::Real=1, scale_z::Real=1, weight_foreground::Real=6,
+        weight_bkg_gap::Real=10, boundary_weight=nothing, bin_scale=[1,1,1],
+        SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false
+    )
+
 Makes UNet input files from all files in a directory. This function supports making files either for training or prediction.
 
 # Arguments
-- `path_nrrd::String`: Path to raw data NRRD files
-- `path_nrrd::Union{Nothing, String}`: Path to NRRD label files. If nothing, labels and weights will not be generated.
+- `path_nrrd_raw::String`: Path to raw data NRRD files
+- `path_nrrd_label::Union{Nothing, String}`: Path to NRRD label files. If nothing, labels and weights will not be generated.
 - `path_h5::String`: Path to HDF5 output files.
 - `crop` (optional, default `nothing`): `[crop_x, crop_y, crop_z]`, where every point with coordinates not in the given ranges is cropped out.
 - `transpose::Bool` (optional, default `false`): whether to transpose the x-y coordinates of the image.

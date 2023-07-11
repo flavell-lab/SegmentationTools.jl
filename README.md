@@ -1,13 +1,20 @@
 # SegmentationTools.jl
 
+[![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url]
+
+
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://flavell-lab.github.io/SegmentationTools.jl/stable/
+
+[docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
+[docs-latest-url]: https://flavell-lab.github.io/SegmentationTools.jl/dev/
+
 This package provides a set of visualization tools for segmentation. It is geared towards neuron segmentation,
 but many of the tools can be used for other segmentation problems as well.
 
-The API is available [here](https://flavell-lab.github.io/SegmentationTools.jl/dev/).
-
 ## Prerequisites
 
-This package requires you to have previously installed the `FlavellBase.jl`, `ImageDataIO.jl`, `NRRDIO.jl`, `WormFeatureDetector.jl`, and `CaSegmentation.jl` packages from the `flavell-lab` github page, and that you have [succesfully configured `WebIO`](https://juliagizmos.github.io/WebIO.jl/latest/providers/ijulia/) if you're using this package's visualization tools with Jupyter. It is designed to interface with the `pytorch-3dunet` package, also in the `flavell-lab` github page.
+This package requires you to have previously installed the `FlavellBase.jl`, `ImageDataIO.jl`, `UNet2D.jl`, `NRRDIO.jl`, `WormFeatureDetector.jl`, and `SegmentationStats.jl` packages from the `flavell-lab` github page, and that you have [succesfully configured `WebIO`](https://juliagizmos.github.io/WebIO.jl/latest/providers/ijulia/) if you're using this package's visualization tools with Jupyter. It is designed to interface with the `pytorch-3dunet` package, also in the `flavell-lab` github page.
 
 Additionally, the example code provided here requires the `ImageDataIO` package is loaded in the current Julia environment.
 
