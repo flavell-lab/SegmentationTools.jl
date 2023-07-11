@@ -1,4 +1,9 @@
 """
+    instance_segmentation_watershed(
+        param::Dict, param_path::Dict, path_dir_nrrd::String, t_range,
+        f_basename::Function; save_centroid::Bool=false, save_signal::Bool=false, save_roi::Bool=false
+    )
+
 Runs watershed instance segmentation on all given frames and can output to various files (centroids, activity measurements, and image ROIs).
 Skips a given output method if the corresponding output directory was empty.
 Returns dictionary of results and a list of error frames (most likely because the worm was not in the field of view).
@@ -120,12 +125,16 @@ function instance_segmentation_watershed(param::Dict, param_path::Dict, path_dir
 end
 
 """
+    volume(radius, sampling_ratio)
+
 Computes volume from a radius and a sampling ratio
 """
 volume(radius, sampling_ratio) = (4 / 3) * π * prod(radius .* sampling_ratio)
 
 
 """
+    instance_segmentation(predictions; min_neuron_size::Integer=7)
+
 Runs instance segmentation on a frame. Removes detected objects that are too small to be neurons.
 
 # Arguments
@@ -141,7 +150,10 @@ function instance_segmentation(predictions; min_neuron_size::Integer=7)
 end
 
 
-""" Converts an instance-segmentation image `labeled_img` to a ROI image. Ignores ROIs smaller than the minimum size `min_neuron_size`. """
+""" 
+    consolidate_labeled_img(labeled_img, min_neuron_size)
+
+Converts an instance-segmentation image `labeled_img` to a ROI image. Ignores ROIs smaller than the minimum size `min_neuron_size`. """
 function consolidate_labeled_img(labeled_img, min_neuron_size)
     labels = []
     # background label will have the majority of pixels
@@ -175,6 +187,8 @@ function consolidate_labeled_img(labeled_img, min_neuron_size)
 end
 
 """
+    get_activity(img_roi, img; activity_func=mean)
+
 Returns the average activity of all ROIs in an image.
 
 # Arguments
@@ -196,6 +210,8 @@ function get_activity(img_roi, img; activity_func=mean)
 end
 
 """
+    find_convex_hull(points)
+
 Finds the convex hull of a set of `points`, counting how many lines intersect each point.
 """
 function find_convex_hull(points)
@@ -225,6 +241,8 @@ function find_convex_hull(points)
 end
 
 """
+    get_points(img_roi, roi)
+
 Returns all points from `img_roi` corresponding to region `roi`.
 """
 function get_points(img_roi, roi)
@@ -232,6 +250,8 @@ function get_points(img_roi, roi)
 end
 
 """
+    distance(p1, p2; zscale=1)
+
 Computes the distance between two points `p1` and `p2`, with the z-axis scaled by `zscale` (default 1).
 """
 function distance(p1, p2; zscale=1)
@@ -241,6 +261,8 @@ function distance(p1, p2; zscale=1)
 end
 
 """
+    hull_watershed(points, hull; zscale=1, init_scale=0.7)
+
 Does watershed segmentation on a set of `points` and their convex `hull`, with the intent of splitting concave neurons.
 Scales z-axis by `zscale` (default 1) and expands first segmented neuron by `init_scale` (default 0.7) to determine second neuron location.
 """
@@ -284,6 +306,8 @@ function hull_watershed(points, hull; zscale=1, init_scale=0.7)
 end
 
 """
+    watershed_threshold(points, centroid_matches, predictions)
+
 Watersheds an ROI, taking as input its peaks (found previously via thresholding) and the UNet raw output.
 
 # Arguments:
@@ -313,6 +337,8 @@ function watershed_threshold(points, centroid_matches, predictions)
 end
 
 """
+    detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
+
 Detects incorrectly merged ROIs via thresholding. Thresholds the UNet raw output multiple times, checking if 
 an ROI gets split into multiple, smaller ROIs at higher threshold values.
 
@@ -346,6 +372,8 @@ function detect_incorrect_merges(img_roi, predictions, thresholds, neuron_sizes)
 end
 
 """
+    instance_segmentation_threshold(img_roi, predictions; thresholds=[0.7, 0.8, 0.9], neuron_sizes=[5,4,4])
+
 Further instance segments a preliminary ROI image by thresholding UNet predictions and checking if ROIs split during thresholding.
 
 # Arguments:
@@ -382,6 +410,8 @@ end
 
 
 """
+    instance_segment_hull(img_roi, points, hull; min_neuron_size=10, zscale=1, init_scale=0.7)
+
 Instance segments an image `img_roi` given set of `points` with a given convex `hull` via watershedding.
 Discards neurons with size less than `min_neuron_size` (default 10), scales z-axis by `zscale` (default 1),
 and expands first segmented neuron by `init_scale` (default 0.7) to determine second neuron location.
@@ -401,6 +431,8 @@ function instance_segment_hull(img_roi, points, hull; min_neuron_size=10, zscale
 end
 
 """
+    concave_score(points, hull)
+
 Generates a score for how concave a set of `points` with a given convex `hull` is.
 """
 function concave_score(points, hull)
@@ -408,6 +440,8 @@ function concave_score(points, hull)
 end
 
 """
+    is_concave(points, hull; threshold_scale=0.3)
+
 Detects if a given set of `points` is concave given its `hull`, by comparing its concavity score with `threshold_scale`.
 """
 function is_concave(points, hull; threshold_scale=0.3)
@@ -415,6 +449,8 @@ function is_concave(points, hull; threshold_scale=0.3)
 end
 
 """
+    find_concave_neurons(img_roi; num_neurons=10, threshold_scale=0.3)
+
 Finds the `num_neurons` (default 10) most concave neurons in an image `img_roi`.
 Concave neurons must also meet the `threshold_scale` (default 0.3).
 """
@@ -446,6 +482,11 @@ function find_concave_neurons(img_roi; num_neurons=10, threshold_scale=0.3)
 end
 
 """
+    instance_segment_concave(
+        img_roi; threshold_scale::Real=0.3, init_scale::Real=0.7,
+        zscale::Real=1, min_neuron_size::Integer=10, scale_recurse_multiply::Real=1.5, num_neurons::Integer=10
+    )
+
 Recursively segments all concave neurons in an image. 
 
 # Arguments

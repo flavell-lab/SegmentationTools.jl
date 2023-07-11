@@ -254,6 +254,8 @@ function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size;
 end
 
 """
+    find_head(param::Dict, param_path::Dict, t_range, f_basename::Function; manual_override=[])
+
 Finds the tip of the nose of the worm in each time point, and warns of bad time points.
 Uses a series of blob-approximations of the worm with different sensitivities, by using local convex hull.
 The convex hulls should be set up in increasing order (so the last convex hull is the most generous).
