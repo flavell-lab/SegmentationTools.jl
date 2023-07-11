@@ -1,4 +1,6 @@
 """
+    call_unet(param_path::Dict; gpu=0)
+
 Makes a local copy of a parameter file, modifies directories in that parameter file, then calls the UNet.
 
 # Arguments

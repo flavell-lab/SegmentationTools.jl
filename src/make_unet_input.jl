@@ -1,4 +1,6 @@
 """
+    get_neighbors_diagonal(idx, s)
+
 Gets all neighbors of a voxel (including diagonally).
 
 # Arguments
@@ -28,6 +30,8 @@ function get_neighbors_diagonal(idx, s)
 end
 
 """
+    get_neighbors_cartesian(idx, s)
+
 Gets all neighbors of a voxel (not including diagonally) within an N-dimensional image.
 
 # Arguments
@@ -55,6 +59,11 @@ end
 
 
 """
+    create_weights(
+        label; scale_xy::Real=0.36, scale_z::Real=1, metric::String="taxicab", weight_foreground::Real=4,
+        weight_bkg_gap::Real=24, boundary_weight=nothing, scale_bkg_gap::Bool=false
+    )
+
 Creates a weight map from a given labeled dataset.
 Unlabeled data (label 0) has weight 0 and background data (label 2) far from foreground data
 has weight 1. Foreground data (label 1) has a higher weight.
@@ -167,6 +176,8 @@ end
 
 
 """
+    decrease_SN(img; factor::Real=10, std::Real=1)
+
 Decreases S/N ratio of an image by the given factor.
 
 # Arguments
@@ -184,6 +195,13 @@ end
 
 
 """
+    make_unet_input_h5(
+        img_raw::Array, img_label::Union{Nothing,Array}, path_h5::String; crop=nothing, transpose::Bool=false, 
+        weight_strategy::String="neighbors", metric::String="taxicab", scale_xy::Real=0.36, scale_z::Real=1, 
+        weight_foreground::Real=6,  weight_bkg_gap::Real=10, boundary_weight=nothing,
+        bin_scale=[1,1,1], SN_reduction_factor::Real=1, SN_percent::Real=16, scale_bkg_gap::Bool=false
+    )
+
 Makes a UNet input file. This function supports making files either for training or prediction.
 
 # Arguments
@@ -339,6 +357,8 @@ end
 
 
 """
+    make_unet_input_h5(param_path::Dict, path_dir_nrrd::String, t_range, ch_marker::Int, f_basename::Function)
+
 Generatesn HDF5 file, to be input to the UNet, out of a raw image file and a label file. Assumes 3D data.
 
 # Arguments

@@ -1,4 +1,6 @@
 """
+    view_label_overlay(img, label, weight; contrast::Real=1, label_intensity::Real=0.5)
+
 Makes image of the raw data overlaid with a translucent label.
 
 # Arguments
@@ -22,6 +24,8 @@ function view_label_overlay(img, label, weight; contrast::Real=1, label_intensit
 end
 
 """
+    visualize_prediction_accuracy_2D(predicted, actual, weight)
+
 Generates an image which compares the predictions of the neural net with the label.
 Green = match, red = mismatch.
 Assumes the predictions and labels are binary 2D arrays.
@@ -43,6 +47,8 @@ end
 
 
 """
+    visualize_prediction_accuracy_3D(predicted, actual, weight)
+
 Generates an image which compares the predictions of the neural net with the label.
 Green = match, red = mismatch.
 Assumes the predictions and labels are binary 3D arrays.
@@ -61,6 +67,8 @@ end
 
 
 """
+    make_plot_grid(plots, cols::Integer, plot_size)
+
 Makes grid out of many smaller plots. 
 
 # Arguments
@@ -84,6 +92,11 @@ function make_plot_grid(plots, cols::Integer, plot_size)
 end
 
 """
+    display_predictions_2D(
+        raw, label, weight, predictions_array; cols::Integer=7, plot_size=(1800,750), 
+        display_accuracy::Bool=true, contrast::Real=1
+    )
+
 Compares multiple different neural network predictions of the raw dataset,
 in comparison with the label and weight samples. The order of the plots is a plot of the raw
 data, followed by a plot of the weights, followed by plots of raw predictions and prediction vs label
@@ -128,6 +141,11 @@ function display_predictions_2D(raw, label, weight, predictions_array; cols::Int
 end
 
 """
+    display_predictions_3D(
+        raw, label, weight, predictions_array; cols::Integer=7,
+        plot_size=(1800,750), axis=3, display_accuracy::Bool=true, contrast=1
+    )
+
 Compares multiple different neural network predictions of the raw dataset,
 using an interactive slider to toggle between z-planes of the 3D dataset.
 
@@ -155,6 +173,8 @@ function display_predictions_3D(raw, label, weight, predictions_array; cols::Int
 end
 
 """
+    compute_mean_iou(raw_file, prediction_file; threshold=0.5)
+
 Computes the mean IOU between `raw_file` and a `prediction_file` HDF5 files.
 
 By default, assumes a threshold of 0.5, but this can be changed with the `threshold` parameter.

@@ -17,8 +17,8 @@ Rotates and then crops an image, optionally along with its head and centroid loc
 
 ## Optional keyword arguments
 - `fill`: what value to put in pixels that were rotated in from outside the original image.
-If kept at its default value "median", the median of the image will be used.
-Otherwise, it can be set to a numerical value.
+  If kept at its default value "median", the median of the image will be used.
+  Otherwise, it can be set to a numerical value.
 - `degree`: degree of the interpolation. Default `Linear()`; can set to `Constant()` for nearest-neighbors.
 - `dtype`: type of data in resulting image. Default `Int16`.
 - `crop_pad`: amount to pad the cropping in each dimension. Default 5 pixels in each dimension.

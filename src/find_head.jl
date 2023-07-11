@@ -265,26 +265,26 @@ The third convex hull is used to find the tip of the worm's head.
 # Arguments:
 
 - `param_path::Dict`: Dictionary of paths including the keys:
-    - `path_head_pos`: Path to head position output file
-    - `path_dir_nrrd_crop`: Path to NRRD input files
-    - `path_dir_centroid`: Path to centroid input files
+  - `path_head_pos`: Path to head position output file
+  - `path_dir_nrrd_crop`: Path to NRRD input files
+  - `path_dir_centroid`: Path to centroid input files
 - `param::Dict`: Dictionary of parameter settings including the keys:
-    - `head_threshold`: threshold for required neuron density for convex hull `i`
-is (number of centroids) / `param["head_threshold"][i]`
-    - `head_max_distance`: the maximum distance for a neuron to be counted as part of
-convex hull `i` is `max_d[i]`
-    - `head_err_threshold`: if convex hulls 2 and 3 give head locations farther apart than 
-this many pixels, set error flag.
-    - `head_vc_err_threshold`: if convex hulls 2 and 3 give tail locations farther apart than 
-this many pixels, set error flag.
-    - `head_edge_err_threshold`: if the boundary of the worm is closer than this to the edge of 
-the frame, set error flag.
+  - `head_threshold`: threshold for required neuron density for convex hull `i`
+    is (number of centroids) / `param["head_threshold"][i]`
+  - `head_max_distance`: the maximum distance for a neuron to be counted as part of
+    convex hull `i` is `max_d[i]`
+  - `head_err_threshold`: if convex hulls 2 and 3 give head locations farther apart than 
+    this many pixels, set error flag.
+  - `head_vc_err_threshold`: if convex hulls 2 and 3 give tail locations farther apart than 
+    this many pixels, set error flag.
+  - `head_edge_err_threshold`: if the boundary of the worm is closer than this to the edge of 
+    the frame, set error flag.
 - `t_range`: The time points to compute head location
 - `f_basename::Function`: Function that takes as input a time point and a channel and gives the 
-basename of the corresponding NRRD file.
-- `manual_override` (optional): In case the algorithm finds the worm's ventral cord instead of 
-its head, set this variable to a list of all time points where
-    the algorithm was wrong.
+  basename of the corresponding NRRD file.
+- `manual_override` (optional): In case the algorithm finds the worm's ventral cord instead of
+  its head, set this variable to a list of all time points where
+  the algorithm was wrong.
 """
 function find_head(param::Dict, param_path::Dict, t_range, f_basename::Function; manual_override=[])
     path_head_pos = param_path["path_head_pos"]

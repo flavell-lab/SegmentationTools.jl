@@ -15,8 +15,3 @@ watershed_threshold
 instance_segmentation
 consolidate_labeled_img
 ```
-
-## Watershed-Concave Instance Segmentation (currently not used)
-```@docs
-instance_segment_concave
-```
