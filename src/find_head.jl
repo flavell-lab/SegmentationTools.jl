@@ -212,7 +212,7 @@ Automatically crops the images to 1:322,1:210, downsamples them by 2x, and takes
 function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size; nrrd_dir="path_dir_nrrd_shearcorrect", crop=true)
     head_pos = Dict()
     head_errs = Dict()
-    @showprogress for t in param["t_range"]
+    for t in param["t_range"]
         path_nrrd = joinpath(param_path[nrrd_dir],
             param_path["get_basename"](t,2) * ".nrrd")
         img = maxprj(read_img(NRRD(path_nrrd)), dims=3)
