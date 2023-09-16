@@ -262,7 +262,7 @@ function crop_rotate!(path_dir_nrrd::String, path_dir_nrrd_crop::String, path_di
     dict_error = Dict{Int, Any}()
     focus_issues = []
     
-    @showprogress for t = t_range
+    for t = t_range
         try
             img = read_img(NRRD(joinpath(path_dir_nrrd, f_basename(t, ch_list[1]) * ".nrrd")))
             if haskey(dict_crop_rot_param, t)
