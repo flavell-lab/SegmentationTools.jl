@@ -49,5 +49,6 @@ export
     uncrop_img_rois,
     call_unet,
     get_neighbors,
-    get_neighbors_diagonal
+    get_neighbors_diagonal,
+    make_autolabel_input
 end # module
