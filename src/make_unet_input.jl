@@ -384,5 +384,5 @@ function make_autolabel_input(param_path::Dict, param::Dict)
     autolabel = pyimport("autolabel")
     create_dir(param_path["path_dir_autolabel_input"])
     autolabel.create_h5_from_nrrd(param_path["path_neuropal_img"], param_path["path_h5_autolabel_input"], param_path["path_neuron_img"],
-        param_path["path_neuron_img_crop"], param["autolabel_crop_size"], nothing, all_red_path=param_path["path_all_red_img"])
+        param_path["path_neuron_img_crop"], param["crop_size"], nothing, all_red_path=param_path["path_all_red_img"])
 end
