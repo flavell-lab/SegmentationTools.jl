@@ -255,7 +255,7 @@ function make_unet_input_h5(img_raw::Array, img_label::Union{Nothing,Array}, pat
     std = median(img_raw) - percentile(collect(Iterators.flatten(img_raw)), SN_percent)
     if bin_scale != [1,1,1]
         if make_label
-            label = resample_img(img_label, bin_scale; dtype="label")
+            img_label = resample_img(img_label, bin_scale; dtype="label")
         end
         img_raw = resample_img(img_raw, bin_scale)
     end
