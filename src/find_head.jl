@@ -219,21 +219,15 @@ function find_head_unet(param_path, param, dict_param_crop_rot, model, img_size;
         img_raw = UNet2D.standardize(Float32.(resample_img(img[1:322,1:210], [2,2])))
         img_pred = resample_img(eval_model(img_raw, model), [0.5, 0.5], dtype="weight")
 
-        img_pred_reshape = zeros(img_size)
-        for z=1:img_size[3]
-            img_pred_reshape[1:322,1:210,z] .= img_pred
-        end
-
-        crop_x, crop_y, crop_z = dict_param_crop_rot[t]["crop"]
-        θ = dict_param_crop_rot[t]["θ"]
-        worm_centroid = dict_param_crop_rot[t]["worm_centroid"]
+        crop_params = dict_param_crop_rot[t]["crop"]
+        theta = dict_param_crop_rot[t]["θ"]
 
         if crop
-            img_pred_crop = maxprj(crop_rotate(img_pred_reshape, crop_x, crop_y, crop_z,
-                    θ, worm_centroid)[1], dims=3)
+            img_pred_crop = crop_rotate_image(img_pred, crop_params, theta)
         else
-            img_pred_crop = maxprj(img_pred_reshape, dims=3)
+            img_pred_crop = img_pred
         end
+
         img_pred_thresh = instance_segmentation(img_pred_crop .> param["head_threshold"],
             min_neuron_size=0)
         img_pred_thresh[img_pred_crop .<= param["head_threshold"]] .= 0
