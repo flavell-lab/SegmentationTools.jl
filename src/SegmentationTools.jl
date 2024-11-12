@@ -3,7 +3,8 @@ module SegmentationTools
 using FlavellBase, ImageDataIO, UNet2D, HDF5, Interact, NRRDIO, Distributions,
     StatsBase, LinearAlgebra, PyCall, ProgressMeter, DataStructures, Images, Plots,
     ImageSegmentation, WormFeatureDetector, ImageTransformations,
-    CoordinateTransformations, StaticArrays, Interpolations, Rotations, SegmentationStats
+    CoordinateTransformations, StaticArrays, Interpolations, Rotations, SegmentationStats,
+    FileIO, Printf, Statistics, ImageMorphology, ImageFiltering
 
 include("init.jl")
 include("find_head.jl")
@@ -13,6 +14,7 @@ include("semantic_segmentation.jl")
 include("instance_segmentation.jl")
 include("centroid_visualization.jl")
 include("crop_worm.jl")
+include("cropnet.jl")
 
 export
     find_head,
@@ -50,5 +52,8 @@ export
     call_unet,
     get_neighbors,
     get_neighbors_diagonal,
-    make_autolabel_input
+    make_autolabel_input,
+    crop_rotate_dset!,
+    crop_rotate_image,
+    crop_rotate_volume
 end # module
