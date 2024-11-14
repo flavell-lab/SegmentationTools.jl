@@ -835,9 +835,8 @@ function crop_rotate_dset!(path_dir_nrrd::String, path_dir_nrrd_crop::String, pa
                 model_input = UNet2D.standardize(mip)
                 model_result = eval_model(model_input, model)
                 model_result_mask = model_result .> confidence_cutoff
-                if count(model_result_mask) < 5 #!any(model_result_mask)
+                if count(model_result_mask) < 8156 # determined as 2nd percentile of human-created labels
                     #TODO: report in dict_error
-                    #TODO: actually set threshold mask size (currently 5px)
                     println("No worm detected in timepoint $(t)")
                     bg_cutoff = quantile(vec(model_input), 0.96) # we generally use 96% as noise-neuron cutoff
                     mask = model_input .> bg_cutoff
